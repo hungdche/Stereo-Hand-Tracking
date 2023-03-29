@@ -18,8 +18,8 @@ Hololens use ray point for hand interaction -> not intuitive. Stick to the basic
 
 4. [ ] **Neural Network** train to detect hand poses during occlusion. If all 5 fingers can be detected, switch back to classical might be a better choice 
 
-5. [ ] **Hand pose Simulation** need visualization in 3D to show that we can detect occlusion, consider using Pangolin 
+5. [ ] **Hand pose Simulation** need visualization in 3D to show that we can detect occlusion
 
 ## Credits 
 
-This is CS498 Machine Perception final project by Henry Che @hungdche and Jeffrey Liu @jebbly. 
+This is CS498 Machine Perception final project by Henry Che [@hungdche](https://github.com/hungdche) and Jeffrey Liu [@Jebbly](https://github.com/Jebbly). 
