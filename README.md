@@ -20,6 +20,16 @@ Hololens use ray point for hand interaction -> not intuitive. Stick to the basic
 
 5. [ ] **Hand pose Simulation** need visualization in 3D to show that we can detect occlusion
 
+## Expected Dataset format
+
+We are using [this dataset](https://github.com/zhjwustc/icip17_stereo_hand_pose_dataset).
+
+    Stereo-Hand-Tracking
+        |- data/
+            |- BiCounting.zip       # i is the sequence index
+            |- B1Couting_BB.mat
+
+
 ## Credits 
 
 This is CS498 Machine Perception final project by Henry Che [@hungdche](https://github.com/hungdche) and Jeffrey Liu [@Jebbly](https://github.com/Jebbly). 
