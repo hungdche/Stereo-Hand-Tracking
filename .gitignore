@@ -1,4 +1,5 @@
-# Virtual Env
+# Local virtual environment and dataset directory
+data/
 venv/
 
 *.bundle.*
