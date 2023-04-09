@@ -19,3 +19,6 @@ class StereoMatcher:
         left_disp = self.left_matcher.compute(left_im, right_im)
         right_disp = self.right_matcher.compute(right_im, left_im)
         return self.disparity_filter.filter(left_disp, left_im, disparity_map_right=right_disp)
+
+    def estimate_foreground(self, image):
+        return self.foreground_estimator.apply(image)
