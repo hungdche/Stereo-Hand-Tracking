@@ -14,12 +14,12 @@ int main(int argc, char** argv )
     }
 
     DatasetLoader dataset{argv[1]};
-    HandModeler model(24, 5);
+    HandModeler skin_model{};
 
     cv::namedWindow("Hand Model", cv::WINDOW_AUTOSIZE);
     while (!dataset.is_done()) {
         std::pair<cv::Mat, cv::Mat> image_pair = dataset.get_image_pair();
-        cv::Mat hand_model = model.estimate_hand(image_pair.first);
+        cv::Mat hand_model = skin_model.estimate_hand(image_pair.first);
 
         cv::imshow("Hand Model", hand_model);
         cv::waitKey(42);
