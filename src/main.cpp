@@ -3,6 +3,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "dataset_loader.h"
+#include "hand_modeler.h"
 
 int main(int argc, char** argv )
 {
@@ -13,9 +14,11 @@ int main(int argc, char** argv )
     }
 
     DatasetLoader dataset{argv[1]};
+    HandModeler model(24, 5);
 
     while (!dataset.is_done()) {
-        auto image_pair = dataset.get_image_pair();
+        std::pair<cv::Mat, cv::Mat> image_pair = dataset.get_image_pair();
+        cv::Mat hand_model = model.estimate_hand(image_pair.first);
 
         cv::namedWindow("Left Image", cv::WINDOW_AUTOSIZE );
         cv::imshow("Left Image", image_pair.first);

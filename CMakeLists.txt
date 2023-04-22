@@ -9,6 +9,7 @@ include_directories(include)
 
 set(PROJECT_SRC
     src/dataset_loader.cpp
+    src/hand_modeler.cpp
     src/main.cpp
 )
 
