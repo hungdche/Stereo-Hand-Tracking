@@ -16,14 +16,15 @@ int main(int argc, char** argv )
     DatasetLoader dataset{argv[1]};
     HandModeler model(24, 5);
 
+    cv::namedWindow("Hand Model", cv::WINDOW_AUTOSIZE);
     while (!dataset.is_done()) {
         std::pair<cv::Mat, cv::Mat> image_pair = dataset.get_image_pair();
         cv::Mat hand_model = model.estimate_hand(image_pair.first);
 
-        cv::namedWindow("Left Image", cv::WINDOW_AUTOSIZE );
-        cv::imshow("Left Image", image_pair.first);
-        cv::waitKey(0);
+        cv::imshow("Hand Model", hand_model);
+        cv::waitKey(42);
     }
+    cv::destroyAllWindows();
 
     return 0;
 }

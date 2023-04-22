@@ -9,10 +9,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/video.hpp>
 
-int channels[3] = {0, 1, 2};
-int hist_size[3] = {256, 256, 256};
-float range[2] = {0, 256};
-const float *ranges[3] = {range, range, range};
+typedef cv::Point3_<uint8_t> Pixel;
 
 class HandModeler
 {
