@@ -5,6 +5,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall")
 
 find_package(OpenCV REQUIRED)
+message(STATUS "Using OpenCV Version: ${OpenCV_VERSION}")
+
+find_package(Eigen3 REQUIRED)
+message(STATUS "Using Eigen3 Version: ${Eigen3_VERSION}")
 
 include_directories(
     ${PROJECT_SOURCE_DIR}
@@ -13,6 +17,7 @@ include_directories(
 include_directories(include)
 
 set(PROJECT_SRC
+    src/bounding_box.cpp
     src/dataset_loader.cpp
     src/hand_modeler.cpp
     src/stereo_matching.cpp
