@@ -22,6 +22,8 @@ set(PROJECT_SRC
     src/dataset_loader.cpp
     src/hand_modeler.cpp
     src/stereo_matching.cpp
+    src/hand_segmentation.cpp
+    src/main.cpp
 )
 
 set(PROJECT_LIBS
