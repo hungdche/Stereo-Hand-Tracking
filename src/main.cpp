@@ -17,10 +17,11 @@ int main(int argc, char** argv )
 
     ICIP17_StereoHandPose dataset{argv[1]};
     HandModeler skin_model{24, 5};
-    StereoMatcher stereo_matcher{0, 5};
+    StereoMatcher stereo_matcher{16, 5};
 
-    int frame = 0;
+    int frame = 0, debugged = 0;
     cv::namedWindow("Hand Model", cv::WINDOW_AUTOSIZE);
+    cv::namedWindow("Left Hand", cv::WINDOW_AUTOSIZE);
     while (!dataset.is_done()) {
         std::pair<cv::Mat, cv::Mat> image_pair = dataset.get_image_pair();
         
@@ -35,8 +36,12 @@ int main(int argc, char** argv )
         
         /* STEREO MATCHING */
         auto stereo_matching_start = std::chrono::high_resolution_clock::now();
-        
-        cv::Mat census = stereo_matcher.compute(image_pair.first, image_pair.second);
+        cv::imshow("Hand Model", hand_model);
+        if (!debugged) {
+            debugged = 1;
+            stereo_matcher.debug(image_pair.first, image_pair.second, hand_model);
+        } 
+        std::cout << debugged << std::endl;
         auto stereo_matching_end = std::chrono::high_resolution_clock::now();
 
         /* PRINT COMPUTATION TIME */
@@ -46,7 +51,7 @@ int main(int argc, char** argv )
         std::cout << "Stereo Matching: " << stereo_matching_duration.count() << " ns" << std::endl;
 
         /* PRINT IMAGES */
-        cv::imshow("Hand Model", census);
+        cv::imshow("Hand Model", hand_model);
         cv::setWindowTitle("Hand Model", "Frame " + std::to_string(frame));
         cv::waitKey(42);
 
