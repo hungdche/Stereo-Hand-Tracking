@@ -57,7 +57,7 @@ bool BoundingBox::create_obb(float* xyz_data, int data_num, float* GT_xyz_data, 
 
 			for (int i = 0; i < m_xyz_data.size(); i++)
 			{
-				cov(j, k) += m_xyz_data[i][j] * m_xyz_data[i][k];		//c[j] * c[k];
+				cov(j, k) += m_xyz_data[i](j) * m_xyz_data[i](k);		//c[j] * c[k];
 			}
 
 			cov(j, k) /= pt_num;	
@@ -114,7 +114,7 @@ bool BoundingBox::create_obb(float* xyz_data, int data_num, float* GT_xyz_data, 
 	std::vector<double> a, b, c;
 	for (int i = 0; i < pt_num; i++)
 	{
-		Eigen::Vector3f ov = m_xyz_data[i] - center_pt;
+		Eigen::Vector3f ov = m_xyz_data[i].head<3>() - center_pt;
 		a.push_back(ov.dot(x_axis));
 		b.push_back(ov.dot(y_axis));
 		c.push_back(ov.dot(z_axis));
@@ -373,9 +373,6 @@ void BoundingBox::jacobbi(const Eigen::Matrix3f& input_mat, Eigen::Matrix3f& v, 
 				st = dga / sqrt(2 * (1 + sqrt(1 - dga * dga)));
 				ct = sqrt(1 - st * st);
 				for (int l = 0; l < n; l++) {
-					dsqr = CA(l,p) * ct - CA(l,q) * st;
-					CA(l, q) = CA(l, p) * st + CA(l, q) * ct;
-					CA(l, p) = dsqr;
 					dsqr = v(l, p) * ct - v(l, q) * st;
 					v(l, q) = v(l, p) * st + v(l, q) * ct;
 					v(l, p) = dsqr;

@@ -2,6 +2,7 @@
 #define __DATASET_LOADER_H__
 
 #include <chrono>
+#include <iomanip>
 #include <filesystem>
 #include <map>
 #include <regex>
@@ -35,14 +36,17 @@ public:
 private:
     std::string m_dataset_dir;
     std::string m_current_subject, m_current_gesture;
+    int m_index;
 
     std::vector<HandPose> m_current_gts;
 
 public:
     CVPR17_MSRAHandGesture(const std::string &dataset_dir);
 
-    void set_current_subject(int subject, int gesture);
-    std::pair<cv::Mat, HandPose> get_next_image();
+    void set_current_set(int subject, int gesture);
+    std::tuple<cv::Mat, cv::Rect, HandPose> get_next_image();
+
+    bool is_done();
 };
 
 #endif // __DATASET_LOADER_H__

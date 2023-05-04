@@ -21,12 +21,18 @@ set(PROJECT_SRC
     src/dataset_loader.cpp
     src/hand_modeler.cpp
     src/stereo_matching.cpp
-    src/main.cpp
 )
 
 set(PROJECT_LIBS
     ${OpenCV_LIBS}
+    Eigen3::Eigen
 )
 
-add_executable(${PROJECT_NAME} ${PROJECT_SRC})
-target_link_libraries(${PROJECT_NAME} ${PROJECT_LIBS})
+add_library(lib_${PROJECT_NAME} ${PROJECT_SRC})
+target_link_libraries(lib_${PROJECT_NAME} PUBLIC ${PROJECT_LIBS})
+
+add_executable(${PROJECT_NAME} src/main.cpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE lib_${PROJECT_NAME})
+
+add_executable(projection_generation src/projection_generation.cpp)
+target_link_libraries(projection_generation PRIVATE lib_${PROJECT_NAME})
