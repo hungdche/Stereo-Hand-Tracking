@@ -15,7 +15,7 @@ int main(int argc, char** argv )
         return -1;
     }
 
-    DatasetLoader dataset{argv[1]};
+    ICIP17_StereoHandPose dataset{argv[1]};
     HandModeler skin_model{24, 5};
     StereoMatcher stereo_matcher{0, 5};
 
