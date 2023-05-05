@@ -45,7 +45,7 @@ int main(int argc, char** argv )
                 }
 
                 // Project on XY, YZ, and XZ planes
-                projector.load(depth, bbox, gt);
+                projector.load_data(depth, bbox, gt);
                 projector.create_obb();
 
                 auto projections = projector.create_projections();

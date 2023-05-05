@@ -27,13 +27,14 @@ private:
     double m_x_length, m_y_length, m_z_length;
     Eigen::Matrix4f m_relative_xform;
 
-public:
-    DepthProjector(int x_res, int y_res, double focal_length, int out_size, int m_heat_size);
-
-    bool load(const cv::Mat &depth_image, const cv::Rect &bbox, const std::array<Eigen::Vector3f, 21> &gt);
+    // Helper functions
     bool load_depth_image(const cv::Mat &depth_image, const cv::Rect &bbox);
     void load_ground_truth(const std::array<Eigen::Vector3f, 21> &gt);
 
+public:
+    DepthProjector(int x_res, int y_res, double focal_length, int out_size, int m_heat_size);
+
+    bool load_data(const cv::Mat &depth_image, const cv::Rect &bbox, const std::array<Eigen::Vector3f, 21> &gt);
     bool create_obb();
 
     std::array<cv::Mat, 3> create_projections();

@@ -13,16 +13,6 @@ DepthProjector::DepthProjector(int x_res, int y_res, double focal_length, int ou
     m_z_length = 0.0f;
 }
 
-bool DepthProjector::load(const cv::Mat &depth_image, const cv::Rect &bbox, const std::array<Eigen::Vector3f, 21> &gt)
-{
-	if (!load_depth_image(depth_image, bbox)) {
-		return false;
-	}
-
-	load_ground_truth(gt);
-	return true;
-}
-
 bool DepthProjector::load_depth_image(const cv::Mat &depth_image, const cv::Rect &bbox)
 {
 	int num_elements = bbox.width * bbox.height;
@@ -77,100 +67,14 @@ void DepthProjector::load_ground_truth(const std::array<Eigen::Vector3f, 21> &gt
 	}
 }
 
-std::array<cv::Mat, 3> DepthProjector::create_projections()
+bool DepthProjector::load_data(const cv::Mat &depth_image, const cv::Rect &bbox, const std::array<Eigen::Vector3f, 21> &gt)
 {
-	int pad = int(m_out_size * 0.1);
-	std::array<cv::Mat, 3> proj_im;
-
-	// 0. x-y
-	proj_im[0] = cv::Mat::ones(m_out_size, m_out_size, CV_32F);
-	if (m_x_length >= m_y_length) {
-		m_projected_bbox[0].width = m_out_size - (pad << 1);
-		m_projected_bbox[0].height = std::round((m_projected_bbox[0].width * (m_y_length) / m_x_length));
-		m_proj_k[0] = float(m_projected_bbox[0].width) / m_x_length;
-	} else {
-		m_projected_bbox[0].height = m_out_size - (pad << 1);
-		m_projected_bbox[0].width = std::round((m_projected_bbox[0].height*m_x_length) / m_y_length);
-		m_proj_k[0] = float(m_projected_bbox[0].height) / m_y_length;
-	}
-	m_projected_bbox[0].x = ((m_out_size - m_projected_bbox[0].width) >> 1);
-	m_projected_bbox[0].y = ((m_out_size - m_projected_bbox[0].height) >> 1);
-	cv::Mat xy_roi(proj_im[0], m_projected_bbox[0]);
-
-	for (int i = 0; i < m_xyz_data.size(); i++)
-	{
-		int xy_u = std::clamp((int) std::round(m_proj_k[0]*(m_xyz_data[i][0] + m_x_length / 2.0)), 0, m_projected_bbox[0].width - 1);
-		int xy_v = std::clamp((int) std::round(m_proj_k[0]*(-m_xyz_data[i][1] + m_y_length / 2.0)), 0, m_projected_bbox[0].height - 1);
-
-		// normalize 0-1 and set the nearest point
-		float norm_depth = std::max(0.0, (m_xyz_data[i][2] + m_z_length / 2.0) / m_z_length);
-		if (xy_roi.at<float>(xy_v, xy_u) > norm_depth) {
-			xy_roi.at<float>(xy_v, xy_u) = norm_depth;
-		}
+	if (!load_depth_image(depth_image, bbox)) {
+		return false;
 	}
 
-	// 1. y-z
-	proj_im[1] = cv::Mat::ones(m_out_size, m_out_size, CV_32F);
-	if (m_y_length >= m_z_length)
-	{
-		m_projected_bbox[1].width = m_out_size - (pad << 1);
-		m_projected_bbox[1].height = std::round((m_projected_bbox[1].width*m_z_length) / m_y_length);
-		m_proj_k[1] = float(m_projected_bbox[1].width) / m_y_length;
-	}
-	else
-	{
-		m_projected_bbox[1].height = m_out_size - (pad << 1);
-		m_projected_bbox[1].width = std::round((m_projected_bbox[1].height*m_y_length) / m_z_length);
-		m_proj_k[1] = float(m_projected_bbox[1].height) / m_z_length;
-	}
-	m_projected_bbox[1].x = ((m_out_size - m_projected_bbox[1].width) >> 1);
-	m_projected_bbox[1].y = ((m_out_size - m_projected_bbox[1].height) >> 1);
-	cv::Mat yz_roi(proj_im[1], m_projected_bbox[1]);
-
-	for (int i = 0; i < m_xyz_data.size(); ++i)
-	{
-		int yz_u = std::clamp((int) std::round(m_proj_k[1]*(-m_xyz_data[i][1] + m_y_length / 2.0)), 0, m_projected_bbox[1].width - 1);
-		int yz_v = std::clamp((int) std::round(m_proj_k[1]*(m_xyz_data[i][2] + m_z_length / 2.0)), 0, yz_v = m_projected_bbox[1].height - 1);
-
-		// normalize 0-1 and set the nearest point
-		float norm_depth = std::max(0.0, (-m_xyz_data[i][0] + m_x_length / 2.0) / m_x_length);
-		if (yz_roi.at<float>(yz_v, yz_u) > norm_depth) {
-			yz_roi.at<float>(yz_v, yz_u) = norm_depth;
-		}
-	}
-
-	// 2. z-x
-	proj_im[2] = cv::Mat::ones(m_out_size, m_out_size, CV_32F);
-	if (m_z_length >= m_x_length) {
-		m_projected_bbox[2].width = m_out_size - (pad << 1);
-		m_projected_bbox[2].height = std::round((m_projected_bbox[2].width*m_x_length) / m_z_length);
-		m_proj_k[2] = float(m_projected_bbox[2].width) / m_z_length;
-	} else {
-		m_projected_bbox[2].height = m_out_size - (pad << 1);
-		m_projected_bbox[2].width = std::round((m_projected_bbox[2].height*m_z_length) / m_x_length);
-		m_proj_k[2] = float(m_projected_bbox[2].height) / m_x_length;
-	}
-	m_projected_bbox[2].x = ((m_out_size - m_projected_bbox[2].width) >> 1);
-	m_projected_bbox[2].y = ((m_out_size - m_projected_bbox[2].height) >> 1);
-	cv::Mat zx_roi(proj_im[2], m_projected_bbox[2]);
-
-	for (int i = 0; i < m_xyz_data.size(); ++i)
-	{
-		int zx_u = std::clamp((int) std::round(m_proj_k[2]*(m_xyz_data[i][2] + m_z_length / 2.0)), 0, m_projected_bbox[2].width - 1);
-		int zx_v = std::clamp((int) std::round(m_proj_k[2]*(m_xyz_data[i][0] + m_x_length / 2.0)), 0, zx_v = m_projected_bbox[2].height - 1);
-
-		// normalize 0-1 and set the nearest point
-		float norm_depth = std::max(0.0, (-m_xyz_data[i][1] + m_y_length / 2.0) / m_y_length);
-		if (zx_roi.at<float>(zx_v, zx_u) > norm_depth) {
-			zx_roi.at<float>(zx_v, zx_u) = norm_depth;
-		}
-	}
-
-	cv::medianBlur(proj_im[0], proj_im[0], 5);
-	cv::medianBlur(proj_im[1], proj_im[1], 5);
-	cv::medianBlur(proj_im[2], proj_im[2], 5);
-
-	return proj_im;
+	load_ground_truth(gt);
+	return true;
 }
 
 bool DepthProjector::create_obb()
@@ -270,4 +174,100 @@ bool DepthProjector::create_obb()
 	}
 
 	return true;
+}
+
+std::array<cv::Mat, 3> DepthProjector::create_projections()
+{
+	int pad = int(m_out_size * 0.1);
+	std::array<cv::Mat, 3> proj_im;
+
+	// 0. x-y
+	proj_im[0] = cv::Mat::ones(m_out_size, m_out_size, CV_32F);
+	if (m_x_length >= m_y_length) {
+		m_projected_bbox[0].width = m_out_size - (pad << 1);
+		m_projected_bbox[0].height = std::round((m_projected_bbox[0].width * (m_y_length) / m_x_length));
+		m_proj_k[0] = float(m_projected_bbox[0].width) / m_x_length;
+	} else {
+		m_projected_bbox[0].height = m_out_size - (pad << 1);
+		m_projected_bbox[0].width = std::round((m_projected_bbox[0].height*m_x_length) / m_y_length);
+		m_proj_k[0] = float(m_projected_bbox[0].height) / m_y_length;
+	}
+	m_projected_bbox[0].x = ((m_out_size - m_projected_bbox[0].width) >> 1);
+	m_projected_bbox[0].y = ((m_out_size - m_projected_bbox[0].height) >> 1);
+	cv::Mat xy_roi(proj_im[0], m_projected_bbox[0]);
+
+	for (int i = 0; i < m_xyz_data.size(); i++)
+	{
+		int xy_u = std::clamp((int) std::round(m_proj_k[0]*(m_xyz_data[i][0] + m_x_length / 2.0)), 0, m_projected_bbox[0].width - 1);
+		int xy_v = std::clamp((int) std::round(m_proj_k[0]*(-m_xyz_data[i][1] + m_y_length / 2.0)), 0, m_projected_bbox[0].height - 1);
+
+		// normalize 0-1 and set the nearest point
+		float norm_depth = std::max(0.0, (m_xyz_data[i][2] + m_z_length / 2.0) / m_z_length);
+		if (xy_roi.at<float>(xy_v, xy_u) > norm_depth) {
+			xy_roi.at<float>(xy_v, xy_u) = norm_depth;
+		}
+	}
+
+	// 1. y-z
+	proj_im[1] = cv::Mat::ones(m_out_size, m_out_size, CV_32F);
+	if (m_y_length >= m_z_length)
+	{
+		m_projected_bbox[1].width = m_out_size - (pad << 1);
+		m_projected_bbox[1].height = std::round((m_projected_bbox[1].width*m_z_length) / m_y_length);
+		m_proj_k[1] = float(m_projected_bbox[1].width) / m_y_length;
+	}
+	else
+	{
+		m_projected_bbox[1].height = m_out_size - (pad << 1);
+		m_projected_bbox[1].width = std::round((m_projected_bbox[1].height*m_y_length) / m_z_length);
+		m_proj_k[1] = float(m_projected_bbox[1].height) / m_z_length;
+	}
+	m_projected_bbox[1].x = ((m_out_size - m_projected_bbox[1].width) >> 1);
+	m_projected_bbox[1].y = ((m_out_size - m_projected_bbox[1].height) >> 1);
+	cv::Mat yz_roi(proj_im[1], m_projected_bbox[1]);
+
+	for (int i = 0; i < m_xyz_data.size(); ++i)
+	{
+		int yz_u = std::clamp((int) std::round(m_proj_k[1]*(-m_xyz_data[i][1] + m_y_length / 2.0)), 0, m_projected_bbox[1].width - 1);
+		int yz_v = std::clamp((int) std::round(m_proj_k[1]*(m_xyz_data[i][2] + m_z_length / 2.0)), 0, yz_v = m_projected_bbox[1].height - 1);
+
+		// normalize 0-1 and set the nearest point
+		float norm_depth = std::max(0.0, (-m_xyz_data[i][0] + m_x_length / 2.0) / m_x_length);
+		if (yz_roi.at<float>(yz_v, yz_u) > norm_depth) {
+			yz_roi.at<float>(yz_v, yz_u) = norm_depth;
+		}
+	}
+
+	// 2. z-x
+	proj_im[2] = cv::Mat::ones(m_out_size, m_out_size, CV_32F);
+	if (m_z_length >= m_x_length) {
+		m_projected_bbox[2].width = m_out_size - (pad << 1);
+		m_projected_bbox[2].height = std::round((m_projected_bbox[2].width*m_x_length) / m_z_length);
+		m_proj_k[2] = float(m_projected_bbox[2].width) / m_z_length;
+	} else {
+		m_projected_bbox[2].height = m_out_size - (pad << 1);
+		m_projected_bbox[2].width = std::round((m_projected_bbox[2].height*m_z_length) / m_x_length);
+		m_proj_k[2] = float(m_projected_bbox[2].height) / m_x_length;
+	}
+	m_projected_bbox[2].x = ((m_out_size - m_projected_bbox[2].width) >> 1);
+	m_projected_bbox[2].y = ((m_out_size - m_projected_bbox[2].height) >> 1);
+	cv::Mat zx_roi(proj_im[2], m_projected_bbox[2]);
+
+	for (int i = 0; i < m_xyz_data.size(); ++i)
+	{
+		int zx_u = std::clamp((int) std::round(m_proj_k[2]*(m_xyz_data[i][2] + m_z_length / 2.0)), 0, m_projected_bbox[2].width - 1);
+		int zx_v = std::clamp((int) std::round(m_proj_k[2]*(m_xyz_data[i][0] + m_x_length / 2.0)), 0, zx_v = m_projected_bbox[2].height - 1);
+
+		// normalize 0-1 and set the nearest point
+		float norm_depth = std::max(0.0, (-m_xyz_data[i][1] + m_y_length / 2.0) / m_y_length);
+		if (zx_roi.at<float>(zx_v, zx_u) > norm_depth) {
+			zx_roi.at<float>(zx_v, zx_u) = norm_depth;
+		}
+	}
+
+	cv::medianBlur(proj_im[0], proj_im[0], 5);
+	cv::medianBlur(proj_im[1], proj_im[1], 5);
+	cv::medianBlur(proj_im[2], proj_im[2], 5);
+
+	return proj_im;
 }
