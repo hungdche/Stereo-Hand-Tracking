@@ -14,16 +14,18 @@
 class DepthProjector
 {
 private:
+    // Set at initialization (parameters of the camera)
+    int m_x_res, m_y_res;
+    double m_focal_length;
+    int m_out_size, m_heat_size;
+
+    // Computed for every depth image
     std::vector<Eigen::Vector4f> m_xyz_data, m_gt_xyz_data;
     std::array<cv::Rect, 3> m_projected_bbox;
     std::array<float, 3> m_proj_k;
-
-    int m_x_res, m_y_res;
-    double m_focal_length;
-
-    int m_out_size, m_heat_size;
-
     Eigen::Vector3f m_center_pt;
+    double m_x_length, m_y_length, m_z_length;
+    Eigen::Matrix4f m_relative_xform;
 
 public:
     DepthProjector(int x_res, int y_res, double focal_length, int out_size, int m_heat_size);
@@ -36,10 +38,6 @@ public:
 
     std::array<cv::Mat, 3> create_projections();
     std::array<Eigen::Matrix<double, 14, 2>, 3> create_heatmaps();
-
-
-    double x_length, y_length, z_length;
-    Eigen::Matrix4f relative_xform;
 
     std::array<cv::Mat, 3> project(const cv::Mat &depth_image, const cv::Rect &bbox, cv::Point2f projected_uvs[][JOINT_NUM]);
 	bool project_direct(cv::Mat* proj_im, cv::Point2f proj_uv[][JOINT_NUM], int sz);
