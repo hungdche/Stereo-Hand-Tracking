@@ -271,14 +271,3 @@ bool DepthProjector::create_obb()
 
 	return true;
 }
-
-Eigen::Vector3f DepthProjector::get_yaw_pitch_roll()
-{
-	Eigen::Vector3f angles(0.0, 0.0, 0.0);	// yaw-alpha, pitch-beta, roll-garma
-
-	angles[0] = atan2(-m_relative_xform(2, 0), sqrt(pow(m_relative_xform(0, 0), 2) + pow(m_relative_xform(1, 0), 2)));
-	angles[1] = atan2(m_relative_xform(1, 0), m_relative_xform(0, 0));
-	angles[2] = atan2(m_relative_xform(2, 1), m_relative_xform(2, 2));
-
-	return angles;
-}

@@ -38,16 +38,13 @@ public:
 
     std::array<cv::Mat, 3> create_projections();
     std::array<Eigen::Matrix<double, 14, 2>, 3> create_heatmaps();
-
-    std::array<cv::Mat, 3> project(const cv::Mat &depth_image, const cv::Rect &bbox, cv::Point2f projected_uvs[][JOINT_NUM]);
-	bool project_direct(cv::Mat* proj_im, cv::Point2f proj_uv[][JOINT_NUM], int sz);
     
-    std::array<cv::Rect, 3>& get_proj_bbox() {return m_projected_bbox;}
-    std::array<float, 3>& get_proj_k() {return m_proj_k;}
-    double get_z_value(double x_val, double y_val) {return 0.0f;}
-    const std::vector<Eigen::Vector4f>& get_gt_xyz_data() {return m_gt_xyz_data;}
-    void get_project_points(float* xyz_data, int data_num, float* xy_data, float* yz_data, float* zx_data);
-	Eigen::Vector3f get_yaw_pitch_roll();
+    const std::array<cv::Rect, 3>& get_proj_bbox() const {return m_projected_bbox;}
+    const std::array<float, 3>& get_proj_k() const {return m_proj_k;}
+    const Eigen::Matrix4f& get_relative_xform() const {return m_relative_xform;}
+    double get_x_length() const {return m_x_length;}
+    double get_y_length() const {return m_y_length;}
+    double get_z_length() const {return m_z_length;}
 
 private:
     void jacobbi(const Eigen::Matrix3f &input_mat, Eigen::Matrix3f &v, double *p_array);
