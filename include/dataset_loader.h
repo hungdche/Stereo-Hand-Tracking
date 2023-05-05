@@ -33,6 +33,10 @@ public:
     static const int num_joints = 21;
     typedef std::array<Eigen::Vector3f, num_joints> HandPose;
 
+    static const int width = 320;
+    static const int height = 240;
+    static constexpr double focal_length = 241.42;
+
 private:
     std::string m_dataset_dir;
     std::string m_current_subject, m_current_gesture;

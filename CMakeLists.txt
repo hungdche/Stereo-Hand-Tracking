@@ -18,8 +18,8 @@ include_directories(
 include_directories(include)
 
 set(PROJECT_SRC
-    src/bounding_box.cpp
     src/dataset_loader.cpp
+    src/depth_projector.cpp
     src/hand_modeler.cpp
     src/stereo_matching.cpp
     src/hand_segmentation.cpp
