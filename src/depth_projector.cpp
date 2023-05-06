@@ -21,7 +21,7 @@ bool DepthProjector::load_depth_image(const cv::Mat &depth_image, const cv::Rect
 	depth_image.forEach<float>([&](float &depth, const int position[]) -> void {
         int x = position[1], y = position[0];
 
-		Eigen::Vector3f uv_depth(x + bbox.width, y + bbox.height, depth);
+		Eigen::Vector3f uv_depth(x + bbox.x, y + bbox.y, depth);
 		Eigen::Vector3f world_co(-(m_x_res / 2.0 - uv_depth.x()) * uv_depth.z() / m_focal_length,
 								 -(uv_depth.y() - m_y_res / 2.0) * uv_depth.z() / m_focal_length,
 								 uv_depth.z());
@@ -76,7 +76,9 @@ bool DepthProjector::load_data(const cv::Mat &depth_image, const cv::Rect &bbox,
 	load_ground_truth(gt);
 
 	create_obb();
+
 	create_projections();
+	create_heatmap_uvs();
 	return true;
 }
 
@@ -186,7 +188,7 @@ void DepthProjector::create_projections()
 
 	if (m_x_length >= m_y_length) {
 		m_projected_bbox[0].width = m_out_size - (pad << 1);
-		m_projected_bbox[0].height = std::round((m_projected_bbox[0].width * (m_y_length) / m_x_length));
+		m_projected_bbox[0].height = std::round((m_projected_bbox[0].width*m_y_length) / m_x_length);
 		m_proj_k[0] = float(m_projected_bbox[0].width) / m_x_length;
 	} else {
 		m_projected_bbox[0].height = m_out_size - (pad << 1);
@@ -230,7 +232,7 @@ void DepthProjector::create_projections()
 
 	for (int i = 0; i < m_xyz_data.size(); ++i) {
 		int yz_u = std::clamp((int) std::round(m_proj_k[1]*(-m_xyz_data[i][1] + m_y_length / 2.0)), 0, m_projected_bbox[1].width - 1);
-		int yz_v = std::clamp((int) std::round(m_proj_k[1]*(m_xyz_data[i][2] + m_z_length / 2.0)), 0, yz_v = m_projected_bbox[1].height - 1);
+		int yz_v = std::clamp((int) std::round(m_proj_k[1]*(m_xyz_data[i][2] + m_z_length / 2.0)), 0, m_projected_bbox[1].height - 1);
 
 		// normalize 0-1 and set the nearest point
 		float norm_depth = std::max(0.0, (-m_xyz_data[i][0] + m_x_length / 2.0) / m_x_length);
@@ -253,14 +255,14 @@ void DepthProjector::create_projections()
 		m_projected_bbox[2].width = std::round((m_projected_bbox[2].height*m_z_length) / m_x_length);
 		m_proj_k[2] = float(m_projected_bbox[2].height) / m_x_length;
 	}
-	
+
 	m_projected_bbox[2].x = ((m_out_size - m_projected_bbox[2].width) >> 1);
 	m_projected_bbox[2].y = ((m_out_size - m_projected_bbox[2].height) >> 1);
 	cv::Mat zx_roi(m_projections[2], m_projected_bbox[2]);
 
 	for (int i = 0; i < m_xyz_data.size(); ++i) {
 		int zx_u = std::clamp((int) std::round(m_proj_k[2]*(m_xyz_data[i][2] + m_z_length / 2.0)), 0, m_projected_bbox[2].width - 1);
-		int zx_v = std::clamp((int) std::round(m_proj_k[2]*(m_xyz_data[i][0] + m_x_length / 2.0)), 0, zx_v = m_projected_bbox[2].height - 1);
+		int zx_v = std::clamp((int) std::round(m_proj_k[2]*(m_xyz_data[i][0] + m_x_length / 2.0)), 0, m_projected_bbox[2].height - 1);
 
 		// normalize 0-1 and set the nearest point
 		float norm_depth = std::max(0.0, (-m_xyz_data[i][1] + m_y_length / 2.0) / m_y_length);
@@ -272,3 +274,25 @@ void DepthProjector::create_projections()
 	cv::medianBlur(m_projections[2], m_projections[2], 5);
 }
 
+void DepthProjector::create_heatmap_uvs()
+{
+	for (int i = 0; i < 21; i++) {
+		// 0. x-y
+		m_joint_uvs[0][i].x = std::clamp(std::round(m_proj_k[0]*(m_gt_xyz_data[i][0] + m_x_length / 2.0)) + m_projected_bbox[0].x,
+										 0.0, m_out_size - 1.0);
+		m_joint_uvs[0][i].y = std::clamp(std::round(m_proj_k[0]*(-m_gt_xyz_data[i][1] + m_y_length / 2.0)) + m_projected_bbox[0].y,
+										 0.0, m_out_size - 1.0);
+
+		// 1. y-z
+		m_joint_uvs[1][i].x = std::clamp(std::round(m_proj_k[1]*(-m_gt_xyz_data[i][1] + m_y_length / 2.0)) + m_projected_bbox[1].x,
+										 0.0, m_out_size - 1.0);
+		m_joint_uvs[1][i].y = std::clamp(std::round(m_proj_k[1]*(m_gt_xyz_data[i][2] + m_z_length / 2.0)) + m_projected_bbox[1].y,
+										 0.0, m_out_size - 1.0);
+
+		// 2. z-x
+		m_joint_uvs[2][i].x = std::clamp(std::round(m_proj_k[2]*(m_gt_xyz_data[i][2] + m_z_length / 2.0)) + m_projected_bbox[2].x,
+										 0.0, m_out_size - 1.0);
+		m_joint_uvs[2][i].y = std::clamp(std::round(m_proj_k[2]*(m_gt_xyz_data[i][0] + m_x_length / 2.0)) + m_projected_bbox[2].y,
+										 0.0, m_out_size - 1.0);
+	}
+}

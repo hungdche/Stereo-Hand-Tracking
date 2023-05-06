@@ -69,6 +69,7 @@ void CVPR17_MSRAHandGesture::set_current_set(int subject, int gesture)
     std::cout << "Reading " << num_elements << " images from subject " << m_current_subject << " with gesture " << m_current_gesture << std::endl;
 
     // Following lines are the x, y, z positions of the ground truth joints 
+    m_current_gts.clear();
     while (std::getline(joints, line)) {
         if (!line.empty()) {
             ss << line;
@@ -76,6 +77,7 @@ void CVPR17_MSRAHandGesture::set_current_set(int subject, int gesture)
             for (int i = 0; i < num_joints; i++) {
                 Eigen::Vector3f joint;
                 ss >> joint.x() >> joint.y() >> joint.z();
+                joint.z() *= -1.0f;
                 gt[i] = joint;
             }
             m_current_gts.push_back(gt);
