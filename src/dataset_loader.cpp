@@ -32,7 +32,10 @@ bool ICIP17_StereoHandPose::is_done()
 }
 
 // CVPR 2017 MSRA Hand Pose Estimation
-CVPR17_MSRAHandGesture::CVPR17_MSRAHandGesture(const std::string &dataset_dir)
+CVPR17_MSRAHandGesture::CVPR17_MSRAHandGesture(const std::string &dataset_dir) :
+    m_subject_names{"P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"},
+    m_gesture_names{"1", "2", "3", "4", "5", "6", "7", "8", "9",
+                    "I", "IP", "L", "MP", "RP", "T", "TIP", "Y"}
 {
     m_dataset_dir = dataset_dir;
     m_index = 0;
@@ -41,15 +44,11 @@ CVPR17_MSRAHandGesture::CVPR17_MSRAHandGesture(const std::string &dataset_dir)
 }  
 
 void CVPR17_MSRAHandGesture::set_current_set(int subject, int gesture)
-{
-    const std::string subject_names[9] = {"P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"};
-    const std::string gesture_names[17] = {"1", "2", "3", "4", "5", "6", "7", "8", "9",
-                                           "I", "IP", "L", "MP", "RP", "T", "TIP", "Y"};
-    
+{    
     // Check if the provided subjects and gestures are valid
     assert(subject >= 0 && subject < 9 && gesture >= 0 && gesture < 17);
-    m_current_subject = subject_names[subject];
-    m_current_gesture = gesture_names[gesture];
+    m_current_subject = m_subject_names[subject];
+    m_current_gesture = m_gesture_names[gesture];
 
     // If everything checks out, we can start loading the joint.txt file
     // to get the ground truth joints.

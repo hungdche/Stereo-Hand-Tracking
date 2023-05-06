@@ -1,16 +1,19 @@
 #include <chrono>
 #include <iostream>
+#include <filesystem>
 
 #include <opencv2/opencv.hpp>
 
 #include "dataset_loader.h"
 #include "depth_projector.h"
 
+const std::string planes[3] = {"XY", "YZ", "ZX"};
+
 int main(int argc, char** argv )
 {
-    if (argc != 2)
+    if (argc != 3)
     {
-        std::cout << "usage: ./projection_generation [dataset_directory]" << std::endl;
+        std::cout << "usage: ./projection_generation [dataset_directory] [output_directory]" << std::endl;
         return -1;
     }
 
@@ -18,16 +21,20 @@ int main(int argc, char** argv )
     DepthProjector projector(CVPR17_MSRAHandGesture::width, CVPR17_MSRAHandGesture::height, 
                              CVPR17_MSRAHandGesture::focal_length,
                              96, 18);
+    const std::string output_directory{argv[2]};
 
-    bool visualize = true;
-    int frame = 0;
-    cv::namedWindow("Depth Image");
-    cv::namedWindow("Heatmap 0");
-    cv::namedWindow("Heatmap 1");
-    cv::namedWindow("Heatmap 2");
+    bool visualize = false;
+    if (visualize) {
+        cv::namedWindow("Depth Image");
+        cv::namedWindow("Heatmap 0");
+        cv::namedWindow("Heatmap 1");
+        cv::namedWindow("Heatmap 2");
+    }
 
     for (int subject = 0; subject < 9; subject++) {
         for (int gesture = 0; gesture < 17; gesture++) {
+            int image_index = 0;
+
             dataset.set_current_set(subject, gesture);
             while (!dataset.is_done()) {
                 auto data = dataset.get_next_image();
@@ -50,7 +57,8 @@ int main(int argc, char** argv )
                 projector.load_data(depth, bbox, gt);
                 auto projections = projector.get_projections();
                 auto heatmap_uvs = projector.get_heatmap_uvs();
-                cv::Mat xy = projections[0];
+                auto bboxes = projector.get_proj_bbox();
+                auto ks = projector.get_proj_k();
 
                 if (visualize) {
                     for (int i = 0; i < 3; i++) {
@@ -71,10 +79,55 @@ int main(int argc, char** argv )
                     }
                 }
 
-                // Wait for user input before continuing
-                cv::waitKey(0);
+                // Write out data for training
+                const std::string& subject_name = dataset.get_subject_name(subject);
+                const std::string& gesture_name = dataset.get_gesture_name(gesture); 
 
-                frame++;
+                // Reformat the index to be 6 digits
+                std::stringstream ss;
+                ss << std::setw(6) << std::setfill('0') << image_index;
+                const std::string index_name{ss.str()};
+
+                // Create the directory if it doesn't exist
+                std::string current_directory = output_directory + "/" + subject_name + "/" + gesture_name;
+                std::filesystem::create_directories(current_directory);
+                std::string path = current_directory + "/" + index_name;
+
+                // The projections, parameters, and heatmap labels all depend on the projection plane
+                // TO-DO: write in binary format
+                for (int i = 0; i < 3; i++) {
+                    std::string projection_path = path + "_" + planes[i];
+                    std::ofstream plane(projection_path + "-projection.txt");
+                    for (int y = 0; y < 96; y++) {
+                        for (int x = 0; x < 96; x++) {
+                            plane << projections[i].at<float>(y, x) << " ";
+                        }
+                        plane << std::endl;
+                    }
+                    plane.close();
+
+                    std::ofstream params(projection_path + "-params.txt");
+                    const auto& bbox = bboxes[i];
+                    params << bbox.x << " " << bbox.y << " " << ks[i] << " " << bbox.width << " " << bbox.height << std::endl;
+                    for (int j = 0; j < 21; j++) {
+                        const cv::Point2f& joint = heatmap_uvs[i][j];
+                        params << joint.x << " " << joint.y << std::endl;
+                    }
+                    params.close();
+                }
+
+                // Also write out the relative transformation and bbox length of the point cloud
+                std::ofstream common(path + "-common.txt");
+                common << projector.get_x_length() << " " << projector.get_y_length() << " " << projector.get_z_length() << std::endl;
+                common << projector.get_relative_xform() << std::endl;
+                common.close(); 
+
+                // Wait for user input before continuing
+                if (visualize) {
+                    cv::waitKey(0);
+                }
+
+                image_index++;
             }
         }
     }

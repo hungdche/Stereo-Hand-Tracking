@@ -42,6 +42,9 @@ private:
     std::string m_current_subject, m_current_gesture;
     int m_index;
 
+    const std::array<std::string, 9> m_subject_names;
+    const std::array<std::string, 17> m_gesture_names;
+
     std::vector<HandPose> m_current_gts;
 
 public:
@@ -49,6 +52,9 @@ public:
 
     void set_current_set(int subject, int gesture);
     std::tuple<cv::Mat, cv::Rect, HandPose> get_next_image();
+
+    const std::string& get_subject_name(int subject) const {return m_subject_names[subject];}
+    const std::string& get_gesture_name(int gesture) const {return m_gesture_names[gesture];}
 
     bool is_done();
 };
