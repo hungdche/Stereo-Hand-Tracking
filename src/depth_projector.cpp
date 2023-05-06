@@ -188,11 +188,11 @@ void DepthProjector::create_projections()
 
 	if (m_x_length >= m_y_length) {
 		m_projected_bbox[0].width = m_out_size - (pad << 1);
-		m_projected_bbox[0].height = std::round((m_projected_bbox[0].width*m_y_length) / m_x_length);
+		m_projected_bbox[0].height = std::max(1.0, std::round((m_projected_bbox[0].width*m_y_length) / m_x_length));
 		m_proj_k[0] = float(m_projected_bbox[0].width) / m_x_length;
 	} else {
 		m_projected_bbox[0].height = m_out_size - (pad << 1);
-		m_projected_bbox[0].width = std::round((m_projected_bbox[0].height*m_x_length) / m_y_length);
+		m_projected_bbox[0].width = std::max(1.0, std::round((m_projected_bbox[0].height*m_x_length) / m_y_length));
 		m_proj_k[0] = float(m_projected_bbox[0].height) / m_y_length;
 	}
 
@@ -218,11 +218,11 @@ void DepthProjector::create_projections()
 
 	if (m_y_length >= m_z_length) {
 		m_projected_bbox[1].width = m_out_size - (pad << 1);
-		m_projected_bbox[1].height = std::round((m_projected_bbox[1].width*m_z_length) / m_y_length);
+		m_projected_bbox[1].height = std::max(1.0, std::round((m_projected_bbox[1].width*m_z_length) / m_y_length));
 		m_proj_k[1] = float(m_projected_bbox[1].width) / m_y_length;
 	} else {
 		m_projected_bbox[1].height = m_out_size - (pad << 1);
-		m_projected_bbox[1].width = std::round((m_projected_bbox[1].height*m_y_length) / m_z_length);
+		m_projected_bbox[1].width = std::max(1.0, std::round((m_projected_bbox[1].height*m_y_length) / m_z_length));
 		m_proj_k[1] = float(m_projected_bbox[1].height) / m_z_length;
 	}
 
@@ -248,11 +248,11 @@ void DepthProjector::create_projections()
 
 	if (m_z_length >= m_x_length) {
 		m_projected_bbox[2].width = m_out_size - (pad << 1);
-		m_projected_bbox[2].height = std::round((m_projected_bbox[2].width*m_x_length) / m_z_length);
+		m_projected_bbox[2].height = std::max(1.0, std::round((m_projected_bbox[2].width*m_x_length) / m_z_length));
 		m_proj_k[2] = float(m_projected_bbox[2].width) / m_z_length;
 	} else {
 		m_projected_bbox[2].height = m_out_size - (pad << 1);
-		m_projected_bbox[2].width = std::round((m_projected_bbox[2].height*m_z_length) / m_x_length);
+		m_projected_bbox[2].width = std::max(1.0, std::round((m_projected_bbox[2].height*m_z_length) / m_x_length));
 		m_proj_k[2] = float(m_projected_bbox[2].height) / m_x_length;
 	}
 
