@@ -22,7 +22,9 @@ int main(int argc, char** argv )
     bool visualize = true;
     int frame = 0;
     cv::namedWindow("Depth Image");
-    cv::namedWindow("Heatmap");
+    cv::namedWindow("Heatmap 0");
+    cv::namedWindow("Heatmap 1");
+    cv::namedWindow("Heatmap 2");
 
     for (int subject = 0; subject < 9; subject++) {
         for (int gesture = 0; gesture < 17; gesture++) {
@@ -42,7 +44,6 @@ int main(int argc, char** argv )
                     resized_depth /= 1000.0;
                     cv::resizeWindow("Depth Image", resize);
                     cv::imshow("Depth Image", resized_depth);
-                    cv::waitKey(0);
                 }
 
                 // Project on XY, YZ, and XZ planes
@@ -65,11 +66,13 @@ int main(int argc, char** argv )
                         cv::Size resize(4 * plane.cols, 4 * plane.rows);
                         cv::Mat resized_image;
                         cv::resize(recolor, resized_image, resize);
-                        cv::resizeWindow("Heatmap", resize);
-                        cv::imshow("Heatmap", resized_image);
-                        cv::waitKey(0);
+                        cv::resizeWindow("Heatmap " + std::to_string(i), resize);
+                        cv::imshow("Heatmap " + std::to_string(i), resized_image);
                     }
                 }
+
+                // Wait for user input before continuing
+                cv::waitKey(0);
 
                 frame++;
             }
