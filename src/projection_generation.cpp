@@ -94,7 +94,6 @@ int main(int argc, char** argv )
                 std::string path = current_directory + "/" + index_name;
 
                 // The projections, parameters, and heatmap labels all depend on the projection plane
-                // TO-DO: write in binary format
                 for (int i = 0; i < 3; i++) {
                     std::string projection_path = path + "_" + planes[i];
                     std::ofstream plane(projection_path + "-projection.txt");
