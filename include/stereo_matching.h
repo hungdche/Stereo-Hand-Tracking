@@ -12,25 +12,25 @@
 class StereoMatcher {
 private:
     // StereoBM
-    int _m_num_disp   = 5;
-    int _m_block_size = 34;
+    int _m_num_disp   = 9;
+    int _m_block_size = 2;
     int _m_pref_type  = 1;
-    int _m_pref_size  = 0;
+    int _m_pref_size  = 25;
     int _m_pref_cap   = 62;
     int _m_tex_thresh = 0;
     int _m_uniq_ratio = 4;
     int _m_spec_range = 100;
-    int _m_spec_wsize = 8;
-    int _m_disp12_max = 74;
-    int _m_min_disp   = 42;
-
+    int _m_spec_wsize = 9;
+    int _m_disp12_max = 50;
+    int _m_min_disp   = 25;
+    
     // WLS Filter
-    int _m_wls_sigma = 13;
-    int _m_wls_lambda = 3;
+    int _m_wls_sigma = 20;
+    int _m_wls_lambda = 8;
 
     // Foreground Guided Filter
-    int _m_foreg_radius = 12;
-    int _m_foreg_eps = 6;
+    int _m_foreg_radius = 10;
+    int _m_foreg_eps = 8;
 
     // Color Guided Filter
     int _m_color_radius = 19;
@@ -47,7 +47,7 @@ private:
 public:
     StereoMatcher(int n_disparity = 21, int block_size = 5);
     cv::Mat compute(const cv::Mat &left_color, const cv::Mat &right_color, const cv::Mat &foreground);
-    void debug(const cv::Mat &left_color, const cv::Mat &right_color, const cv::Mat &foreground);
+    cv::Mat debug(const cv::Mat &left_color, const cv::Mat &right_color, const cv::Mat &foreground);
 
 private:
     // private helper functions

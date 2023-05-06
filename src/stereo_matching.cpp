@@ -2,9 +2,7 @@
 
 StereoMatcher::StereoMatcher(int n_disparity, int block_size) 
 {
-    left_matcher = cv::StereoBM::create(n_disparity, block_size);
-    right_matcher = cv::ximgproc::createRightMatcher(left_matcher);
-    wls_filter = cv::ximgproc::createDisparityWLSFilter(left_matcher);    
+    left_matcher = cv::StereoBM::create();  
 
     left_matcher->setNumDisparities((_m_num_disp + 1) * 16);
     left_matcher->setBlockSize(_m_block_size*2+5);
@@ -18,6 +16,9 @@ StereoMatcher::StereoMatcher(int n_disparity, int block_size)
     left_matcher->setSpeckleWindowSize(_m_spec_wsize*2+1);
     left_matcher->setDisp12MaxDiff(_m_disp12_max-50);
 
+    right_matcher = cv::ximgproc::createRightMatcher(left_matcher);
+    wls_filter = cv::ximgproc::createDisparityWLSFilter(left_matcher);  
+
     wls_filter->setLambda(_m_wls_lambda*1000);
     wls_filter->setSigmaColor((double)_m_wls_sigma / 10.0);
 }
@@ -26,9 +27,15 @@ cv::Mat StereoMatcher::compute_disparity(const cv::Mat& left_gray, const cv::Mat
     cv::Mat left_disp, right_disp, disparity;
     left_matcher->compute(left_gray,right_gray,left_disp);
     right_matcher->compute(right_gray, left_gray, right_disp);
+    
     left_disp.convertTo(left_disp,CV_32F, 1.0);
     right_disp.convertTo(right_disp,CV_32F, 1.0);
+
+    // left_disp = (left_disp/16.0f - (float)(_m_min_disp-25))/((float)(_m_num_disp + 1) * 16);
+    // right_disp = (right_disp/16.0f - (float)(_m_min_disp-25))/((float)(_m_num_disp + 1) * 16);
+    
     wls_filter->filter(left_disp,left_color,disparity,right_disp);
+    
     return disparity;
 }
 
@@ -46,33 +53,34 @@ cv::Mat StereoMatcher::compute(const cv::Mat &left_color, const cv::Mat &right_c
 
     cv::Mat disparity, filtered, final_depth;
     disparity = compute_disparity(left_gray, right_gray, left_color);
-    cv::ximgproc::getDisparityVis(disparity,disparity,3);
+    cv::ximgproc::getDisparityVis(disparity,disparity,1);
     filtered = filter_guided(foreground, disparity, _m_foreg_radius, _m_foreg_eps);
     final_depth = filter_guided(left_color, filtered, _m_color_radius, _m_color_radius);
+    final_depth.convertTo(final_depth,CV_32F, 1.0);
     return final_depth;
 }
 
 #pragma region DEBUG_VAR
 // stereo_bm
-int debug_num_disp   = 5;
-int debug_block_size = 34;
+int debug_num_disp   = 9;
+int debug_block_size = 2;
 int debug_pref_type  = 1;
-int debug_pref_size  = 0;
+int debug_pref_size  = 25;
 int debug_pref_cap   = 62;
 int debug_tex_thresh = 0;
 int debug_uniq_ratio = 4;
 int debug_spec_range = 100;
-int debug_spec_wsize = 8;
-int debug_disp12_max = 74;
-int debug_min_disp   = 42;
+int debug_spec_wsize = 9;
+int debug_disp12_max = 50;
+int debug_min_disp   = 25;
 
 // wls_filter
-int debug_wls_sigma = 13;
-int debug_wls_lambda = 3; 
+int debug_wls_sigma = 20;
+int debug_wls_lambda = 8; 
 
 // foreground_filter 
-int debug_foreg_radius = 12;
-int debug_foreg_eps = 6;
+int debug_foreg_radius = 10;
+int debug_foreg_eps = 8;
 
 // color_filter
 int debug_color_radius = 19;
@@ -136,8 +144,8 @@ static void _wls_sigma_bar( int, void* input) {
 }
 #pragma endregion
 
-void StereoMatcher::debug(const cv::Mat &left_color, const cv::Mat &right_color, const cv::Mat &foreground) {
-    // cv::startWindowThread();
+cv::Mat StereoMatcher::debug(const cv::Mat &left_color, const cv::Mat &right_color, const cv::Mat &foreground) {
+    // initial disparity window
     cv::namedWindow("disparity",cv::WINDOW_NORMAL);
     cv::resizeWindow("disparity",600,600);
 
@@ -154,22 +162,29 @@ void StereoMatcher::debug(const cv::Mat &left_color, const cv::Mat &right_color,
     cv::createTrackbar("disp12MaxDiff", "disparity", &debug_disp12_max, 100, _disp12_max_bar, &left_matcher);
     cv::createTrackbar("minDisparity", "disparity", &debug_min_disp, 50, _min_disp_bar, &left_matcher);
 
+    // Creating trackbars to dynamically update WLS Filter params
     cv::createTrackbar("wlsSigmaColor", "disparity", &debug_wls_sigma, 20, _wls_sigma_bar, &wls_filter);
     cv::createTrackbar("wlsLambda", "disparity", &debug_wls_lambda, 8, _wls_lambda_bar, &wls_filter);
 
-    // cv::Mat left, right;
-    // cv::resize(left_color ,left ,cv::Size(),0.5,0.5, cv::INTER_LINEAR_EXACT);
-    // cv::resize(right_color,right,cv::Size(),0.5,0.5, cv::INTER_LINEAR_EXACT);
+    // downscale the images
+    // cv::Mat left_scaled, right_scaled;
+    // cv::resize(left_color ,left_scaled ,cv::Size(),0.5,0.5, cv::INTER_LINEAR_EXACT);
+    // cv::resize(right_color,right_scaled,cv::Size(),0.5,0.5, cv::INTER_LINEAR_EXACT);
 
     // Converting images to grayscale
     cv::Mat left_gray, right_gray;
     cv::cvtColor(left_color, left_gray, cv::COLOR_BGR2GRAY);
     cv::cvtColor(right_color, right_gray, cv::COLOR_BGR2GRAY);
 
+    // Obtaining ideal params for initial disparity
     cv::Mat raw_disp;
     while (cv::getWindowProperty("disparity", cv::WND_PROP_AUTOSIZE) >= 0) {
+        right_matcher = cv::ximgproc::createRightMatcher(left_matcher);
+        wls_filter = cv::ximgproc::createDisparityWLSFilter(left_matcher);  
+        wls_filter->setLambda(debug_wls_lambda*1000);
+        wls_filter->setSigmaColor((double)debug_wls_sigma / 10.0);
         cv::Mat disparity = compute_disparity(left_gray, right_gray, left_color);
-        cv::ximgproc::getDisparityVis(disparity,raw_disp,3);
+        cv::ximgproc::getDisparityVis(disparity,raw_disp,1);
         cv::imshow("disparity",raw_disp);
         if (cv::waitKey(20) == 27) {
             cv::destroyAllWindows();
@@ -189,8 +204,9 @@ void StereoMatcher::debug(const cv::Mat &left_color, const cv::Mat &right_color,
     _m_spec_wsize = debug_spec_wsize;
     _m_disp12_max = debug_disp12_max; 
     _m_wls_lambda = debug_wls_lambda;
-    _m_wls_sigma = debug_wls_sigma;
+    _m_wls_sigma  = debug_wls_sigma;
 
+    // showing the confidence of the latest WLS Filter call
     cv::namedWindow("confidence",cv::WINDOW_NORMAL);
     cv::Mat conf = wls_filter->getConfidenceMap();
     cv::imshow("confidence",conf);
@@ -202,12 +218,15 @@ void StereoMatcher::debug(const cv::Mat &left_color, const cv::Mat &right_color,
         }
     }
 
+    // showing the foreground filter window
     cv::namedWindow("foreground_filter",cv::WINDOW_NORMAL);
     cv::resizeWindow("foreground_filter",600,600);
 
-    cv::createTrackbar("radius", "foreground_filter", &debug_foreg_radius, 20);
-    cv::createTrackbar("eps", "foreground_filter", &debug_foreg_eps, 20);
+    // trackbars for the foreground filter
+    cv::createTrackbar("radius", "foreground_filter", &debug_foreg_radius, 50);
+    cv::createTrackbar("eps", "foreground_filter", &debug_foreg_eps, 100);
 
+    // obtaining ideal param for foreground filter
     cv::Mat filtered;
     while (cv::getWindowProperty("foreground_filter", cv::WND_PROP_AUTOSIZE) >= 0) {
         filtered = filter_guided(foreground, raw_disp, debug_foreg_radius, debug_foreg_eps);
@@ -218,17 +237,22 @@ void StereoMatcher::debug(const cv::Mat &left_color, const cv::Mat &right_color,
             break;
         }
     }
+
+    // load foreground params
     _m_foreg_radius = debug_foreg_radius;
     _m_foreg_eps = debug_foreg_eps;
 
     // TODO: Perform the matching cost calculating process here
 
+    // showing color guilded filter window
     cv::namedWindow("color_filter", cv::WINDOW_NORMAL);
     cv::resizeWindow("color_filter",600,600);
 
-    cv::createTrackbar("radius", "color_filter", &debug_color_radius, 20);
-    cv::createTrackbar("eps", "color_filter", &debug_color_eps, 20);
+    // trackbars for color guided filter
+    cv::createTrackbar("radius", "color_filter", &debug_color_radius, 50);
+    cv::createTrackbar("eps", "color_filter", &debug_color_eps, 100);
 
+    // obtaining ideal color guided filter params
     cv::Mat final_depth;
     while (cv::getWindowProperty("color_filter", cv::WND_PROP_AUTOSIZE) >= 0) {
         final_depth = filter_guided(left_color, filtered, debug_color_radius, debug_color_eps);
@@ -238,6 +262,8 @@ void StereoMatcher::debug(const cv::Mat &left_color, const cv::Mat &right_color,
             break;
         }
     }
+
+    // load color filter params
     _m_color_radius = debug_color_radius;
     _m_color_eps = debug_color_eps;
 
@@ -270,4 +296,7 @@ void StereoMatcher::debug(const cv::Mat &left_color, const cv::Mat &right_color,
     std::cout << "radius: " << _m_color_radius << std::endl;
     std::cout << "eps: " << _m_color_eps << std::endl;
     std::cout << "==============================================\n";
+    
+    // final_depth.convertTo(final_depth,CV_32F, 1.0);
+    return final_depth;
 }
