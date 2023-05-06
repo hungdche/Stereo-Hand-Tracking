@@ -29,4 +29,17 @@ class ProjectionDataset(Dataset):
                 line = lines[y].split(' ')
                 for x in range(96):
                     depth[y, x] = float(line[x])
-        return depth
+        
+        param_path = self.image_prefixes[idx] + "_" + self.plane + "-params.txt"
+        bbox = []
+        joint_uvs = []
+        with open(param_path) as f:
+            line = f.readline().split(' ')
+            for i in range(5):
+                bbox.append(float(line[i]))
+            lines = f.readlines()
+            for j in range(21):
+                line = lines[j].split(' ')
+                joint_uvs.append((float(line[0]), float(line[1])))
+        
+        return depth, bbox, joint_uvs
