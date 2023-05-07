@@ -142,3 +142,6 @@ ui-tests/.pnp.*
 
 # ignore zip file 
 data/
+
+# ignore libtorch
+extern/libtorch*

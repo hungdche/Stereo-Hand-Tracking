@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall")
 
+list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/extern/libtorch")
+
 find_package(OpenCV REQUIRED)
 message(STATUS "Using OpenCV Version: ${OpenCV_VERSION}")
 
@@ -12,8 +14,6 @@ find_package(Eigen3 REQUIRED)
 message(STATUS "Using Eigen3 Version: ${Eigen3_VERSION}")
 
 find_package(Torch REQUIRED)
-message(STATUS "Using Torch Version: ${TORCH_VERSION}")
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
 include_directories(
