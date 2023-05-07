@@ -1,1 +1,0 @@
-#include "hand_segmentation.h"
