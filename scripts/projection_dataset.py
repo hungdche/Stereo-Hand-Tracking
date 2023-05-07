@@ -2,11 +2,13 @@ import os
 import numpy as np
 import cv2
 from torch.utils.data import Dataset
+import torchvision.transforms as transforms
+import torch
 
 from image_util import local_contrast_normalization, generate_heatmap_gt
 
 class ProjectionDataset(Dataset):
-    def __init__(self, dataset_dir, subjects, gestures, plane):
+    def __init__(self, dataset_dir, subjects, gestures, plane, transform):
         self.plane = plane
         self.image_prefixes = []
         for subject in subjects:
@@ -17,6 +19,13 @@ class ProjectionDataset(Dataset):
                     if  "-common.txt" in path:
                         prefix = path.replace("-common.txt", "")
                         self.image_prefixes.append(os.path.join(curr_dir, prefix))
+        
+        self.transform = transform
+        self.transforms = torch.nn.Sequential(
+            transforms.RandomRotation(90),
+            transforms.Normalize([0.0], [1.0]),
+        )
+        scripted_transforms = torch.jit.script(self.transforms)
                 
     
     def __len__(self):
@@ -31,7 +40,9 @@ class ProjectionDataset(Dataset):
                 line = lines[y].split(' ')
                 for x in range(96):
                     depth[y, x] = float(line[x])
-        lcn = local_contrast_normalization(depth)
+                    
+        if (self.transform):
+            depth = self.transforms(torch.Tensor(depth))
         
         param_path = self.image_prefixes[idx] + "_" + self.plane + "-params.txt"
         bbox = np.zeros(5)
@@ -61,4 +72,4 @@ class ProjectionDataset(Dataset):
                 for j in range(4):
                     transform[i, j] = float(line[j])
         
-        return lcn, heatmap_gt
+        return depth, heatmap_gt
