@@ -3,6 +3,8 @@ import numpy as np
 import cv2
 from torch.utils.data import Dataset
 
+from image_util import local_contrast_normalization, generate_heatmap_gt
+
 class ProjectionDataset(Dataset):
     def __init__(self, dataset_dir, subjects, gestures, plane):
         self.plane = plane
@@ -29,30 +31,34 @@ class ProjectionDataset(Dataset):
                 line = lines[y].split(' ')
                 for x in range(96):
                     depth[y, x] = float(line[x])
+        lcn = local_contrast_normalization(depth)
         
         param_path = self.image_prefixes[idx] + "_" + self.plane + "-params.txt"
-        bbox = []
-        joint_uvs = []
+        bbox = np.zeros(5)
+        joint_uvs = np.zeros((21, 2))
         with open(param_path) as f:
             line = f.readline().split(' ')
             for i in range(5):
-                bbox.append(float(line[i]))
+                bbox[i] = float(line[i])
             lines = f.readlines()
             for j in range(21):
                 line = lines[j].split(' ')
-                joint_uvs.append((float(line[0]), float(line[1])))
-                
+                joint_uvs[j][0] = float(line[0])
+                joint_uvs[j][1] = float(line[1])
+        heatmap_gt = generate_heatmap_gt(joint_uvs)
+        
+        # To-do: cleanup
         common_path = self.image_prefixes[idx] + "-common.txt"
-        lengths = []
+        lengths = np.zeros(3)
         transform = np.zeros((4, 4))
         with open(common_path) as f:
             line = f.readline().split(' ')
             for i in range(3):
-                lengths.append(float(line[i]))
+                lengths[i] = float(line[i])
             lines = f.readlines()
             for i in range(4):
                 line = lines[i].split(' ')
                 for j in range(4):
                     transform[i, j] = float(line[j])
         
-        return depth, bbox, joint_uvs, lengths, transform
+        return lcn, heatmap_gt
