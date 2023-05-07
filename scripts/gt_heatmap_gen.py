@@ -2,16 +2,23 @@ from PIL import Image
 import numpy as np
 import torch
 import os
+import io
+import cv2
 import shutil
 import click
 from image_util import generate_heatmap_gt
 
-def load_heat_map(path,output_dir):
+def load_heat_map(path, output_dir, to_tensor=False):
+    '''
+    path are expected to be 00000_XY-projection.txt 
+    '''
     bbox = np.zeros(5)
     joint_uvs = np.zeros((21, 2))
 
     frame = path[path.rfind('/')+1:path.find('-')]
-    
+    plane = frame[frame.find('_')+1:]
+    frame = frame[:frame.find('_')]
+
     with open(path) as f:
         line = f.readline().split(' ')
         for i in range(5):
@@ -22,8 +29,24 @@ def load_heat_map(path,output_dir):
             joint_uvs[j][0] = float(line[0])
             joint_uvs[j][1] = float(line[1])
     heatmap_gt = generate_heatmap_gt(joint_uvs)
-    heatmap_gt = torch.from_numpy(heatmap_gt)
-    torch.save(heatmap_gt, os.path.join(output_dir, '{}.pt'.format(frame)))
+
+    if to_tensor:
+        heatmap_gt = torch.from_numpy(heatmap_gt)
+        output_file = os.path.join(output_dir, '{}.pt'.format(frame))
+        f = io.BytesIO()
+        torch.save(heatmap_gt, output_file, _use_new_zipfile_serialization=True)
+        with open(output_file, "wb") as out_f:
+            out_f.write(f.getbuffer())
+    else:
+        output_frame_dir = os.path.join(output_dir, frame)
+        output_frame_dir = os.path.join(output_frame_dir, plane)
+        os.makedirs(output_frame_dir)
+        for i in range(heatmap_gt.shape[0]):
+            idx = str(i) if i >= 10 else '0' + str(i)
+            output_file = os.path.join(output_frame_dir, '{idx}.jpg'.format(idx=idx))
+            norm_image = cv2.normalize(heatmap_gt[i], None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)
+            norm_image = norm_image.astype(np.uint8)
+            cv2.imwrite(output_file, norm_image)
 
 
 if __name__ == "__main__":
