@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall")
 
-list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/extern/libtorch")
+list(APPEND CMAKE_PREFIX_PATH "${PROJECT_SOURCE_DIR}/extern/libtorch/")
 
 find_package(OpenCV REQUIRED)
 message(STATUS "Using OpenCV Version: ${OpenCV_VERSION}")
@@ -19,6 +19,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 include_directories(
     ${PROJECT_SOURCE_DIR}
     ${OpenCV_INCLUDE_DIRS}
+    ${TORCH_INCLUDE_DIRS}
 )
 
 include_directories(
@@ -39,7 +40,7 @@ set(PROJECT_SRC
 
 set(PROJECT_LIBS
     ${OpenCV_LIBS}
-    ${TORCH_LIBS}
+    ${TORCH_LIBRARIES}
     Eigen3::Eigen
 )
 
@@ -51,3 +52,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE lib_${PROJECT_NAME})
 
 add_executable(projection_generation src/hand_pose_estimation/projection_generation.cpp)
 target_link_libraries(projection_generation PRIVATE lib_${PROJECT_NAME})
+
+add_executable(fusion_visualization src/hand_pose_estimation/fusion_visualization.cpp)
+target_link_libraries(fusion_visualization PRIVATE lib_${PROJECT_NAME})
