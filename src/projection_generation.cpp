@@ -110,7 +110,8 @@ int main(int argc, char** argv )
                     params << bbox.x << " " << bbox.y << " " << ks[i] << " " << bbox.width << " " << bbox.height << std::endl;
                     for (int j = 0; j < 21; j++) {
                         const cv::Point2f& joint = heatmap_uvs[i][j];
-                        params << joint.x << " " << joint.y << std::endl;
+                        float scale = 18.0 / 96.0;
+                        params << (int) (scale * joint.x) << " " << (int) (scale * joint.y) << std::endl;
                     }
                     params.close();
                 }
