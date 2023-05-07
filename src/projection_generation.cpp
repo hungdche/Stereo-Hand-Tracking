@@ -119,7 +119,13 @@ int main(int argc, char** argv )
                 // Also write out the relative transformation and bbox length of the point cloud
                 std::ofstream common(path + "-common.txt");
                 common << projector.get_x_length() << " " << projector.get_y_length() << " " << projector.get_z_length() << std::endl;
-                common << projector.get_relative_xform() << std::endl;
+                const Eigen::Matrix4f& relative_xform = projector.get_relative_xform();
+                for (int i = 0; i < 4; i++) {
+                    for (int j = 0; j < 4; j++) {
+                        common << relative_xform(i, j) << " ";
+                    }
+                    common << std::endl;
+                }
                 common.close(); 
 
                 // Wait for user input before continuing

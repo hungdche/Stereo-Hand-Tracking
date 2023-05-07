@@ -41,5 +41,18 @@ class ProjectionDataset(Dataset):
             for j in range(21):
                 line = lines[j].split(' ')
                 joint_uvs.append((float(line[0]), float(line[1])))
+                
+        common_path = self.image_prefixes[idx] + "-common.txt"
+        lengths = []
+        transform = np.zeros((4, 4))
+        with open(common_path) as f:
+            line = f.readline().split(' ')
+            for i in range(3):
+                lengths.append(float(line[i]))
+            lines = f.readlines()
+            for i in range(4):
+                line = lines[i].split(' ')
+                for j in range(4):
+                    transform[i, j] = float(line[j])
         
-        return depth, bbox, joint_uvs
+        return depth, bbox, joint_uvs, lengths, transform
