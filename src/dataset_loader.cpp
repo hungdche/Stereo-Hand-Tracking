@@ -139,3 +139,73 @@ bool CVPR17_MSRAHandGesture::is_done()
 {
     return m_index >= m_current_gts.size();
 }
+
+// GT Heatmap Tensors
+TensorLoader::TensorLoader(const std::string &dataset_dir, bool is_tensor)
+    : m_is_tensor(is_tensor)
+{
+    m_index = 0;
+
+    std::vector<std::filesystem::path> files_in_directory;
+    std::copy(std::filesystem::directory_iterator(dataset_dir), std::filesystem::directory_iterator(), std::back_inserter(files_in_directory));
+    std::sort(files_in_directory.begin(), files_in_directory.end());
+
+    for (const std::string &file : files_in_directory) {
+        m_tensor_paths.push_back(file);
+    }
+}
+
+torch::Tensor TensorLoader::get_current_tensor()
+{
+    if (!m_is_tensor) {
+        std::cout << "[TensorLoader]: path is images for get_current_tensor()" << std::endl;
+        exit(EXIT_FAILURE); 
+    }
+    std::string tensor_path = m_tensor_paths[m_index];    
+    m_index++;
+
+    std::ifstream input(tensor_path, std::ios::binary);
+    std::vector<char> bytes(
+        (std::istreambuf_iterator<char>(input)),
+        (std::istreambuf_iterator<char>()));
+    input.close();
+
+    torch::IValue x = torch::pickle_load(bytes);
+    torch::Tensor to_return = x.toTensor();
+
+    return to_return;
+}
+
+std::vector<std::vector<cv::Mat>> TensorLoader::get_current_images() {
+    if (m_is_tensor) {
+        std::cout << "[TensorLoader]: path is tensors for get_current_images()" << std::endl;
+        exit(EXIT_FAILURE); 
+    }
+
+    std::string current_frame = m_tensor_paths[m_index];
+    m_index++;
+
+    std::vector<std::vector<cv::Mat>> to_return;
+    to_return.push_back(std::vector<cv::Mat>());
+    to_return.push_back(std::vector<cv::Mat>());
+    to_return.push_back(std::vector<cv::Mat>());
+
+    for (int i = 0; i < 3; i++) {
+        std::string heatmap_path = current_frame + "/" + planes[i];
+
+        std::vector<std::filesystem::path> files_in_directory;
+        std::copy(std::filesystem::directory_iterator(heatmap_path), std::filesystem::directory_iterator(), std::back_inserter(files_in_directory));
+        std::sort(files_in_directory.begin(), files_in_directory.end());
+
+        for (const std::string &file : files_in_directory) {
+            to_return[i].push_back(cv::imread(file, cv::IMREAD_GRAYSCALE));
+        }
+    }
+
+    return to_return;
+}   
+
+bool TensorLoader::is_done()
+{
+    return m_index >= m_tensor_paths.size();
+}
