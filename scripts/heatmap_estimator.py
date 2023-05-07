@@ -46,15 +46,16 @@ class HeatmapEstimator(torch.nn.Module):
         x_96 = x
         x_48 = F.interpolate(x_96, size=(48, 48), mode='bilinear')
         x_24 = F.interpolate(x_96, size=(24, 24), mode='bilinear')
-   
+
         
         cnn1 = self.bank1(x_96)
         cnn2 = self.bank2(x_48)
         cnn3 = self.bank3(x_24)
         
         flat1 = cnn1.view(batch_size, -1)
-        flat2 = cnn1.view(batch_size, -1)
-        flat3 = cnn1.view(batch_size, -1)
+        flat2 = cnn2.view(batch_size, -1)
+        flat3 = cnn3.view(batch_size, -1)
+
         
         flattened = torch.cat((flat1, flat2, flat3), dim=1)
         

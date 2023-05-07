@@ -5,13 +5,15 @@ def local_contrast_normalization(x):
     # First perform global contrast normalization
     g_mean = np.mean(x)
     g_std = np.std(x)
+    if g_std == 0:
+        g_std = 1
     gcn_x = (x - g_mean) / g_std
     
     # Next perform local contrast
     l_mean_x = cv2.GaussianBlur(gcn_x, (9, 9), 1)
     l_mean_x2 = cv2.GaussianBlur(gcn_x * gcn_x, (9, 9), 1)
     
-    lcn_x = (gcn_x - l_mean_x) / np.sqrt(np.abs(l_mean_x - l_mean_x2))
+    lcn_x = (gcn_x - l_mean_x) / np.sqrt(np.abs(l_mean_x - l_mean_x2) + 0.001)
     return lcn_x
     
 def generate_heatmap_gt(joint_uvs):
