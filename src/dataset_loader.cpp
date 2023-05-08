@@ -206,7 +206,6 @@ std::array<std::array<cv::Mat, 3>, 21> GTHeatmapLoader::get_next_heatmaps()
                 }
             }
         }
-        break;
     }
 
     m_index++;

@@ -46,7 +46,18 @@ int main(int argc, char** argv )
                 auto data = dataset.get_next_image();
                 cv::Mat depth = std::get<0>(data);
                 cv::Rect bbox = std::get<1>(data);
-                CVPR17_MSRAHandGesture::HandPose gt = std::get<2>(data);
+                CVPR17_MSRAHandGesture::HandPose gt_joints = std::get<2>(data);
+
+                // Visualize the hand image:
+                // resize by 4x and scale to meters
+                if (visualize) {
+                    cv::Size resize(4 * bbox.width, 4 * bbox.height);
+                    cv::Mat resized_depth;
+                    cv::resize(depth, resized_depth, resize);
+                    resized_depth /= 1000.0;
+                    cv::resizeWindow("Depth Image", resize);
+                    cv::imshow("Depth Image", resized_depth);
+                }
 
                 auto heatmaps = heatmap_loader.get_next_heatmaps();
                 
@@ -54,19 +65,61 @@ int main(int argc, char** argv )
                     for (int i = 0; i < 3; i++) {
                         auto heatmap = heatmaps[0][i];
 
+                        double min, max; 
+                        cv::Point min_loc, max_loc;
+                        cv::minMaxLoc(heatmap, &min, &max, &min_loc, &max_loc);
+
                         cv::Size resize(20 * heatmap.cols, 20 * heatmap.rows);
                         cv::Mat resized_heatmap;
                         cv::resize(heatmap, resized_heatmap, resize, 0, 0, cv::INTER_NEAREST);
+                        resized_heatmap /= max;
 
                         cv::resizeWindow("Heatmap " + std::to_string(i), resize);
                         cv::imshow("Heatmap " + std::to_string(i), resized_heatmap);
                     }
                 }
 
-                fuser.load_data(depth, bbox, gt);
+                fuser.load_data(depth, bbox, gt_joints);
                 fuser.load_heatmaps(heatmaps);
 
                 fuser.fuse();
+
+                const auto& estimated_joints = fuser.get_estimated_joints();
+
+                float total_distance = 0.0f;
+                std::array<float, 21> distances;
+                for (int i = 0; i < 21; i++) {
+                    std::cout << "Joint " << i << " Analysis" << std::endl;
+
+                    std::cout << "GT: ";
+                    for (int k = 0; k < 3; k++) {
+                        std::cout << gt_joints[i][k] << " ";
+                    }
+                    std::cout << std::endl;
+
+                    std::cout << "Estimate: ";
+                    for (int k = 0; k < 3; k++) {
+                        std::cout << estimated_joints[i][k] << " ";
+                    }
+                    std::cout << std::endl;
+
+                    Eigen::Vector3f curr_error = estimated_joints[i] - gt_joints[i];
+
+                    std::cout << "Error: ";
+                    for (int k = 0; k < 3; k++) {
+                        std::cout << curr_error[k] << " ";
+                    }
+                    std::cout << std::endl;
+
+                    distances[i] = curr_error.norm();
+                    total_distance += distances[i];
+
+                    std::cout << "Error: " << distances[i] << std::endl;
+                    std::cout << std::endl;
+                }
+                float average_distance = total_distance / 21;
+
+                std::cout << "Average distance: " << average_distance << std::endl;
 
                 // Wait for user input before continuing
                 if (visualize) {

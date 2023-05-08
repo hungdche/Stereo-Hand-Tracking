@@ -35,7 +35,7 @@ set(PROJECT_SRC
     src/depth_estimation/stereo_matching.cpp
     src/depth_estimation/hand_segmentation.cpp
     src/hand_pose_estimation/depth_projector.cpp
-    # src/hand_pose_estimation/heatmap_fusion.cpp
+    src/hand_pose_estimation/heatmap_fusion.cpp
 )
 
 set(PROJECT_LIBS

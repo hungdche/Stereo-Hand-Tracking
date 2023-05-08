@@ -21,7 +21,7 @@ private:
 
     std::array<cv::Rect, 3> m_bbox;
 	std::array<cv::Rect, 3> m_bbox_18;
-	std::array<double, 3> m_proj_k;
+	std::array<float, 3> m_proj_k;
 
     DepthProjector m_depth_projector;
 
@@ -38,16 +38,17 @@ private:
 
 	std::array<std::array<cv::Mat, 3>, 21> m_heatmaps;
 	std::array<Eigen::Vector3f, 21> m_estimated_joints_xyz; 
+
+	void fuse_sub();		// return xyz in world cs (96 x 96 3d space) - mean-shift
     
 public:
     HeatmapFuser(int x_res, int y_res, double focal_length, int out_size, int m_heat_size);
 
 	bool load_pca(const std::string &path);
     bool load_data(const cv::Mat &depth_image, const cv::Rect &bbox, const std::array<Eigen::Vector3f, 21> &gt);
-	bool load_heatmaps(std::array<std::array<cv::Mat, 3>, 21> &heatmaps);
+	void load_heatmaps(std::array<std::array<cv::Mat, 3>, 21> &heatmaps);
 
     void fuse();			// return xyz in world cs (96 x 96 3d space) - gauss covariance + PCA
-	void fuse_sub(float* estimate_xyz);		// return xyz in world cs (96 x 96 3d space) - mean-shift
 
 	const std::array<Eigen::Vector3f, 21>& get_estimated_joints() const {return m_estimated_joints_xyz;}
 
