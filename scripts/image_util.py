@@ -17,7 +17,7 @@ def local_contrast_normalization(x):
     return lcn_x
     
 def generate_heatmap_gt(joint_uvs):
-    gaussian_1d = cv2.getGaussianKernel(18, 0.1 * np.sqrt(18))
+    gaussian_1d = cv2.getGaussianKernel(18, 0.1 * 18)
     gaussian_2d = gaussian_1d @ gaussian_1d.T
     c = np.max(gaussian_2d)
     # c = np.sum(gaussian_2d)
