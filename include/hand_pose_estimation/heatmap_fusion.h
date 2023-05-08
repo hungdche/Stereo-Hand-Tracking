@@ -19,11 +19,9 @@ private:
     double m_focal_length;
     int m_out_size, m_heat_size;
 
-    std::array<double, 3> m_bbox_x;
-    std::array<double, 3> m_bbox_y;
+    std::array<cv::Rect, 3> m_bbox;
+	std::array<cv::Rect, 3> m_bbox_18;
 	std::array<double, 3> m_proj_k;
-    std::array<double, 3> m_bbox_w;
-    std::array<double, 3> m_bbox_h;
 
     DepthProjector m_depth_projector;
 
@@ -39,15 +37,19 @@ private:
 	int m_num_estimate_gauss_failed;
 
 	std::array<std::array<cv::Mat, 3>, 21> m_heatmaps;
+	std::array<Eigen::Vector3f, 21> m_estimated_joints_xyz; 
     
 public:
     HeatmapFuser(int x_res, int y_res, double focal_length, int out_size, int m_heat_size);
 
 	bool load_pca(const std::string &path);
-    bool load_model(const std::string &path);
+    bool load_data(const cv::Mat &depth_image, const cv::Rect &bbox, const std::array<Eigen::Vector3f, 21> &gt);
+	bool load_heatmaps(std::array<std::array<cv::Mat, 3>, 21> &heatmaps);
 
-    void fuse(float* estimate_xyz);			// return xyz in world cs (96 x 96 3d space) - gauss covariance + PCA
+    void fuse();			// return xyz in world cs (96 x 96 3d space) - gauss covariance + PCA
 	void fuse_sub(float* estimate_xyz);		// return xyz in world cs (96 x 96 3d space) - mean-shift
+
+	const std::array<Eigen::Vector3f, 21>& get_estimated_joints() const {return m_estimated_joints_xyz;}
 
 private:
 	Eigen::Vector4f estimate_joint_xyz(int joint_i);	// return xyz in BB cs (96 x 96 3d space)
@@ -64,7 +66,7 @@ private:
 	void _3d_yz(double y, double z, int& u, int& v); // xyz in 18 x 18 3d space ---> 18 x 18 u, v
 	void _3d_zx(double z, double x, int& u, int& v); // xyz in 18 x 18 3d space ---> 18 x 18 u, v
 
-	void convert_PCA_wld_to_BB();	// convert PCA in world cs to BB cs
+	void convert_pca_world_to_bbox();	// convert PCA in world cs to BB cs
 
 	// estimate the mean and variance (in 18 x 18 3d space) of the gaussian distribution for each joint point
 	bool estimate_gauss_mean_covariance(int joint_i, Eigen::Vector4f& mean_18, Eigen::Matrix3f& covariance_18);	// get covariance matrix

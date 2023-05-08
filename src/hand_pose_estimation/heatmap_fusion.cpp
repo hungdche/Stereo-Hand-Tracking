@@ -26,40 +26,72 @@ HeatmapFuser::HeatmapFuser(int x_res, int y_res, double focal_length, int out_si
 	m_num_estimate_gauss_failed = 0;
 }
 
-void HeatmapFuser::fuse(float* estimate_xyz)	// joint optimization using covariance
+bool HeatmapFuser::load_pca(const std::string &path)
 {
-	for (int i = 0; i < 3; i++)
-	{
-		bbox_x[i] = (bounding_box_x[i] * m_heat_size) / m_out_size;
-		bbox_y[i] = (bounding_box_y[i] * m_heat_size) / m_out_size;
-		bbox_w[i] = (bounding_box_width[i] * m_heat_size) / m_out_size;
-		bbox_h[i] = (bounding_box_height[i] * m_heat_size) / m_out_size;
+	std::ifstream eigenvectors(path + "/pca_eigenvectors.txt");
+	m_pca_fuser.eigenvectors = cv::Mat::zeros(63, 63, CV_32FC1);
+	for (int y = 0; y < 63; y++) {
+		for (int x = 0; x < 63; x++) {
+			eigenvectors >> m_pca_fuser.eigenvectors.at<float>(y, x);
+		}
 	}
+	eigenvectors.close();
+	
+	std::ifstream eigenvalues(path + "/pca_eigenvalues.txt");
+	m_pca_fuser.eigenvalues = cv::Mat::zeros(63, 1, CV_32FC1);
+	for (int y = 0; y < 63; y++) {
+		eigenvalues >> m_pca_fuser.eigenvalues.at<float>(y, 0);
+	}
+	eigenvalues.close();
 
+	std::ifstream mean(path + "/pca_mean.txt");
+	m_pca_fuser.mean = cv::Mat::zeros(1, 63, CV_32FC1);
+	for (int x = 0; x < 63; x++) {
+		mean >> m_pca_fuser.mean.at<float>(0, x);
+	}
+	eigenvalues.close();
+}
+
+bool HeatmapFuser::load_data(const cv::Mat &depth_image, const cv::Rect &bbox, const std::array<Eigen::Vector3f, 21> &gt)
+{
+	m_depth_projector.load_data(depth_image, bbox, gt);
+
+	m_bbox = m_depth_projector.get_proj_bbox();
+	m_proj_k = m_depth_projector.get_proj_bbox();
+
+	m_bbox_18 = (m_bbox * m_heat_size) / m_out_size;
+}
+
+bool HeatmapFuser::load_heatmaps(std::array<std::array<cv::Mat, 3>, 21> &heatmaps)
+{
+	m_heatmaps = heatmaps;
+}
+
+void HeatmapFuser::fuse()	// joint optimization using covariance
+{
 	// 1. calculate mean and variance for each joint point
-	convert_PCA_wld_to_BB();
+	convert_pca_world_to_bbox();
 
 	double k = pow(double(m_out_size) / double(m_heat_size), 2);
-	int joint_i = 0;
-	for (joint_i = 0; joint_i < JOINT_NUM; ++joint_i)
-	{
+	int joint_idx = 0;
+	for (joint_idx = 0; joint_idx < JOINT_NUM; joint_idx++) {
 		Eigen::Vector4f mean_18;
-		if (!estimate_gauss_mean_covariance(joint_i, mean_18, joints_covariance_bb[joint_i]))
-		{
+		if (!estimate_gauss_mean_covariance(joint_idx, mean_18, m_joints_covariance_bb[joint_idx])) {
 			break;
 		}
 
-		xyz_18_96(mean_18, joints_means_bb[joint_i]);
+		xyz_18_96(mean_18, m_joints_means_bb[joint_idx]);
 		
-		joints_covariance_bb[joint_i] *= k;	// covariance_18 in 18 x 18 3d space ---> covariance_96 in 96 x 96 3d space
-		joints_inv_covariance_bb[joint_i] = joints_covariance_bb[joint_i].inverse();
+		m_joints_covariance_bb[joint_idx] *= k;	// covariance_18 in 18 x 18 3d space ---> covariance_96 in 96 x 96 3d space
+		m_joints_inv_covariance_bb[joint_idx] = m_joints_covariance_bb[joint_idx].inverse();
 	}
-	if (joint_i<JOINT_NUM)
-	{
-		++estimate_gauss_failed_cnt;
-		fuse_sub(estimate_xyz);
+
+	if (joint_idx < JOINT_NUM) {
+		estimate_gauss_failed_cnt++;
+		fuse_sub();
 		return;
 	}
+
 	// 2. A*alpha = b
 	cv::Mat A_mat(PCA_SZ, PCA_SZ, CV_32FC1);
 	for (int i = 0; i < PCA_SZ; ++i)
@@ -282,20 +314,20 @@ Eigen::Vector4f HeatmapFuser::estimate_joint_xyz(int joint_i)
 	return pt_96;
 }
 
-bool HeatmapFuser::estimate_gauss_mean_covariance(int joint_i, Eigen::Vector4f& mean_18, Eigen::Matrix3f& covariance_18)
+bool HeatmapFuser::estimate_gauss_mean_covariance(int joint, Eigen::Vector4f& mean_18, Eigen::Matrix3f& covariance_18)
 {
-	cv::Mat xy_8bit(m_heat_size, m_heat_size, CV_8UC1), heat_binary[3];
+	cv::Mat xy_8bit(m_heat_size, m_heat_size, CV_8UC1);
 	cv::Mat yz_8bit(m_heat_size, m_heat_size, CV_8UC1);
 	cv::Mat zx_8bit(m_heat_size, m_heat_size, CV_8UC1);
-	for (int u = 0; u < m_heat_size; ++u)
-	{
-		for (int v = 0; v < m_heat_size; ++v)
-		{
-			xy_8bit.at<unsigned char>(v, u) = int(heatmaps_vec[joint_i * 3].at<float>(v, u) * 256);
-			yz_8bit.at<unsigned char>(v, u) = int(heatmaps_vec[joint_i * 3 + 1].at<float>(v, u) * 256);
-			zx_8bit.at<unsigned char>(v, u) = int(heatmaps_vec[joint_i * 3 + 2].at<float>(v, u) * 256);
+	for (int v = 0; v < m_heat_size; v++) {
+		for (int u = 0; u < m_heat_size; u++) {
+			xy_8bit.at<unsigned char>(v, u) = int(heatmaps_vec[joint][0].at<float>(v, u) * 256);
+			yz_8bit.at<unsigned char>(v, u) = int(heatmaps_vec[joint][1].at<float>(v, u) * 256);
+			zx_8bit.at<unsigned char>(v, u) = int(heatmaps_vec[joint][2].at<float>(v, u) * 256);
 		}
 	}
+
+	std::array<cv::Mat, 3> heat_binary;
 	cv::threshold(xy_8bit, heat_binary[0], 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
 	cv::threshold(yz_8bit, heat_binary[1], 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
 	cv::threshold(zx_8bit, heat_binary[2], 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
@@ -303,47 +335,41 @@ bool HeatmapFuser::estimate_gauss_mean_covariance(int joint_i, Eigen::Vector4f& 
 	// 1. get sample points
 	std::vector<Eigen::Vector4f> xyz_weights;		// xyz_weights[0]->x, xyz_weights[1]->y, xyz_weights[2]->z, xyz_weights[3]->weight
 	double z_value[m_heat_size];
-	for (int i_z = 0; i_z < m_heat_size; ++i_z)
-	{
-		z_value[i_z] = depth_projector->get_z_length() * (i_z + 0.5) / double(m_out_size);
+	for (int i = 0; i < m_heat_size; ++i) {
+		z_value[i] = depth_projector->get_z_length() * (i + 0.5) / double(m_out_size);
 	}
-	for (int u = 0; u < m_heat_size; ++u)
-	{
-		for (int v = 0; v < m_heat_size; ++v)
-		{
-			if (!heat_binary[0].at<bool>(v, u))
-			{
+
+	for (int v = 0; v < m_heat_size; v++) {
+		for (int u = 0; u < m_heat_size; u++) {
+			if (!heat_binary[0].at<bool>(v, u)) {
 				continue;
 			}
+
 			cv::Point3d pt;
-			pt.z = heatmaps_vec[joint_i * 3].at<float>(v, u);
+			pt.z = m_heatmaps[joint][0].at<float>(v, u);
 			xy_3d(u, v, pt.x, pt.y);
-			//_2d_3d(0, u, v, pt);
-			for (int i_z = 0; i_z < m_heat_size; ++i_z)
-			{
+
+			for (int i = 0; i < m_heat_size; i++) {
 				int u_yz, v_yz;
-				_3d_yz(pt.y, z_value[i_z], u_yz, v_yz);
-				if (u_yz < 0 || u_yz >= m_heat_size || v_yz < 0 || v_yz >= m_heat_size || !heat_binary[1].at<bool>(v_yz, u_yz))
-				{
+				_3d_yz(pt.y, z_value[i], u_yz, v_yz);
+				if (u_yz < 0 || u_yz >= m_heat_size || v_yz < 0 || v_yz >= m_heat_size || !heat_binary[1].at<bool>(v_yz, u_yz)) {
 					continue;
 				}
-				float conf_yz = heatmaps_vec[joint_i * 3 + 1].at<float>(v_yz, u_yz);
+				float conf_yz = m_heatmaps[joint][1].at<float>(v_yz, u_yz);
 
 				int u_zx, v_zx;
-				_3d_zx(z_value[i_z], pt.x, u_zx, v_zx);
-				if (u_zx < 0 || u_zx >= m_heat_size || v_zx < 0 || v_zx >= m_heat_size || !heat_binary[2].at<bool>(v_zx, u_zx))
-				{
+				_3d_zx(z_value[i], pt.x, u_zx, v_zx);
+				if (u_zx < 0 || u_zx >= m_heat_size || v_zx < 0 || v_zx >= m_heat_size || !heat_binary[2].at<bool>(v_zx, u_zx)) {
 					continue;
 				}
-				float conf_zx = heatmaps_vec[joint_i * 3 + 2].at<float>(v_zx, u_zx);
+				float conf_zx = m_heatmaps[joint][2].at<float>(v_zx, u_zx);
 
-				xyz_weights.push_back(Eigen::Vector4f(pt.x, pt.y, z_value[i_z], fuse_confidence(pt.z, conf_yz, conf_zx)));
+				xyz_weights.push_back(Eigen::Vector4f(pt.x, pt.y, z_value[i], fuse_confidence(pt.z, conf_yz, conf_zx)));
 			}
 		}
 	}
 
-	if (xyz_weights.size() == 0)
-	{
+	if (xyz_weights.size() == 0) {
 		return false;
 	}
 
@@ -351,16 +377,15 @@ bool HeatmapFuser::estimate_gauss_mean_covariance(int joint_i, Eigen::Vector4f& 
 	Eigen::Vector4f xyz_sum(0.0, 0.0, 0.0, 1.0);
 	float conf_sum = 0.0;
 
-	for (int xyz_i = 0; xyz_i < xyz_weights.size(); ++xyz_i)
+	for (int i = 0; i < xyz_weights.size(); i++)
 	{
-		conf_sum += xyz_weights[xyz_i][3];
-		for (int i = 0; i < 3; ++i)
-		{
-			xyz_sum[i] += xyz_weights[xyz_i][3] * xyz_weights[xyz_i][i];
+		conf_sum += xyz_weights[i][3];
+		for (int k = 0; k < 3; ++i) {
+			xyz_sum[k] += xyz_weights[i][3] * xyz_weights[i][k];
 		}
 	}
-	for (int i = 0; i < 3; ++i)
-	{
+
+	for (int i = 0; i < 3; ++i) {
 		mean_18[i] = xyz_sum[i] / conf_sum;
 	}
 	mean_18[3] = 1.0;
@@ -368,47 +393,34 @@ bool HeatmapFuser::estimate_gauss_mean_covariance(int joint_i, Eigen::Vector4f& 
 	// 3. get covariance
 	covariance_18 = Eigen::Matrix3f::Zero();
 	Eigen::Vector4f xyz_var(0.0, 0.0, 0.0, 1.0);
-	for (int i = 0; i < 3; ++i)
-	{
-		for (int j = 0; j <= i; ++j)
-		{
-			for (int xyz_i = 0; xyz_i < xyz_weights.size(); ++xyz_i)
-			{
-				covariance_18(i, j) += xyz_weights[xyz_i][3] * (xyz_weights[xyz_i][i] - mean_18[i])
-															 * (xyz_weights[xyz_i][j] - mean_18[j]);
+	for (int i = 0; i < 3; k++) {
+		for (int j = 0; j <= i; k++) {
+			for (int k = 0; k < xyz_weights.size(); k++) {
+				covariance_18(i, j) += xyz_weights[k][3] * (xyz_weights[k][i] - mean_18[i])
+													     * (xyz_weights[k][j] - mean_18[j]);
 			}
 			covariance_18(i, j) /= conf_sum;
 			covariance_18(j, i) = covariance_18(i, j);
 		}
 	}
 
-	float var_low_limit = 1e-3;
-	for (int i = 0; i < 3; ++i)
-	{
-		if (covariance_18(i,i) < var_low_limit)
-		{
-			covariance_18(i, i) = var_low_limit;
+	float epsilon = 1e-3;
+	for (int i = 0; i < 3; ++i) {
+		if (covariance_18(i,i) < epsilon) {
+			covariance_18(i, i) = epsilon;
 		}
 	}
-	if (covariance_18.determinant() <= 1)
-	{
-		return false;
-	}
-	return true;
+
+	return (covaraince_18.determinant() > 1);
 }
 
 void HeatmapFuser::_2d_3d(int view_type, int u, int v, cv::Point3d& pt)
 {
-	if (view_type==0)
-	{
+	if (view_type == 0) {
 		xy_3d(u, v, pt.x, pt.y);
-	}
-	else if (view_type == 1)
-	{
+	} else if (view_type == 1) {
 		yz_3d(u, v, pt.x, pt.y);
-	}
-	else if (view_type == 2)
-	{
+	} else if (view_type == 2) {
 		zx_3d(u, v, pt.x, pt.y);
 	}
 }
@@ -474,37 +486,30 @@ void HeatmapFuser::_3d_zx(double z, double x, int& u, int& v)
 	//v = int_rounding(proj_k[2] * x + bbox_y[2]);
 }
 
-void HeatmapFuser::convert_PCA_wld_to_BB()
+void HeatmapFuser::convert_pca_world_to_bbox()
 {
-	Eigen::Matrix4f trans_bb_wld;
-	trans_bb_wld = depth_projector->get_relative_xform().inverse();
+	Eigen::Matrix4f world_to_bbox = depth_projector->get_relative_xform().inverse();
 
-	for (int i = 0; i < 3; ++i)
-	{
-		trans_bb_wld(i, 3) = 0.0;
+	for (int i = 0; i < 3; i++) {
+		world_to_bbox(i, 3) = 0.0;
 	}
 
-	for (int i_pca = 0; i_pca < PCA_SZ; ++i_pca)
-	{
-		for (int i_joint = 0; i_joint < JOINT_NUM; ++i_joint)
-		{
-			Eigen::Vector4f eigen_wld(0.0, 0.0, 0.0, 1.0);
-			for (int i = 0; i < 3; ++i)
-			{
-				eigen_wld[i] = fuser_pca.eigenvectors.at<float>(i_pca, i_joint * 3 + i);
+	for (int i = 0; i < m_pca_size; i++) {
+		for (int j = 0; j < 21; j++) {
+			Eigen::Vector4f eigen_world(0.0, 0.0, 0.0, 1.0);
+			for (int k = 0; k < 3; k++) {
+				eigen_world[i] = fuser_pca.eigenvectors.at<float>(i, j * 3 + k);
 			}
-			pca_eigen_vecs_bb[i_pca][i_joint] = trans_bb_wld * eigen_wld;
+			m_pca_eigenvector_bbox[i][j] = world_to_bbox * eigen_world;
 		}
 	}
 
-	for (int i_joint = 0; i_joint < JOINT_NUM; ++i_joint)
-	{
-		Eigen::Vector4f mean_wld(0.0, 0.0, 0.0, 1.0);
-		for (int i = 0; i < 3; ++i)
-		{
-			mean_wld[i] = fuser_pca.mean.at<float>(0, i_joint * 3 + i);
+	for (int j = 0; j < 21; j++) {
+		Eigen::Vector4f mean_world(0.0, 0.0, 0.0, 1.0);
+		for (int i = 0; i < 3; i++) {
+			mean_world[i] = fuser_pca.mean.at<float>(0, j * 3 + i);
 		}
-		pca_means_bb[i_joint] = trans_bb_wld * mean_wld;
+		m_pca_mean_bbox[j] = world_to_bbox * mean_world;
 	}
 }
 

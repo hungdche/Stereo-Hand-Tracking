@@ -63,6 +63,11 @@ int main(int argc, char** argv )
                     }
                 }
 
+                fuser.load_data(depth, bbox, gt);
+                fuser.load_heatmaps(heatmaps);
+
+                fuser.fuse();
+
                 // Wait for user input before continuing
                 if (visualize) {
                     cv::waitKey(0);
