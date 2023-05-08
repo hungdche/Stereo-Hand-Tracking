@@ -21,9 +21,9 @@ int main(int argc, char** argv )
     }
 
     TensorLoader tensors{argv[1], false};
-    // HeatmapFuser fuser(CVPR17_MSRAHandGesture::width, CVPR17_MSRAHandGesture::height, 
-    //                    CVPR17_MSRAHandGesture::focal_length,
-    //                    96, 18);
+    HeatmapFuser fuser(CVPR17_MSRAHandGesture::width, CVPR17_MSRAHandGesture::height, 
+                       CVPR17_MSRAHandGesture::focal_length,
+                       96, 18);
     
     while (!tensors.is_done()) {
         std::vector<std::vector<cv::Mat>> a = tensors.get_current_images();
