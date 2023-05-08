@@ -1,37 +1,34 @@
 #include "heatmap_fusion.h"
 
-HeatmapFuser::HeatmapFuser(int x_res, int y_res, double focal_length, int out_size, int heat_size) {
+HeatmapFuser::HeatmapFuser(int x_res, int y_res, double focal_length, int out_size, int heat_size) :
+	m_depth_projector{x_res, y_res, focal_length, out_size, heat_size}
+{
     m_x_res = x_res;
 	m_y_res = y_res;
 	m_focal_length = focal_length;
 	m_out_size = out_size;
 	m_heat_size = heat_size;
 
-    depth_projector = new DepthProjector(x_res, y_res, focal_length, out_size, heat_size);
+	m_pca_size = 30;
 
-    heatmaps_vec.resize(JOINT_NUM*3);
-
-	PCA_SZ = 30;
-	int max_PCA_SZ = 63;
-
-	pca_eigen_vecs_bb.resize(max_PCA_SZ);
-	for (int i = 0; i < max_PCA_SZ; ++i)
+	m_pca_eigenvector_bbox.resize(max_pca_size);
+	for (int i = 0; i < max_pca_size; i++)
 	{
-		pca_eigen_vecs_bb[i].resize(JOINT_NUM);
+		m_pca_eigenvector_bbox[i].resize(JOINT_NUM);
 	}
-	pca_means_bb.resize(JOINT_NUM);
+	m_pca_mean_bbox.resize(JOINT_NUM);
 
-	joints_means_bb.resize(JOINT_NUM);
-	joints_variance_bb.resize(JOINT_NUM);
-	joints_covariance_bb.resize(JOINT_NUM);
-	joints_inv_covariance_bb.resize(JOINT_NUM);
+	m_joints_means_bb.resize(JOINT_NUM);
+	m_joints_variance_bb.resize(JOINT_NUM);
+	m_joints_covariance_bb.resize(JOINT_NUM);
+	m_joints_inv_covariance_bb.resize(JOINT_NUM);
 
-	estimate_gauss_failed_cnt = 0;
+	m_num_estimate_gauss_failed = 0;
 }
 
 void HeatmapFuser::fuse(float* estimate_xyz)	// joint optimization using covariance
 {
-	for (int i = 0; i < 3; ++i)
+	for (int i = 0; i < 3; i++)
 	{
 		bbox_x[i] = (bounding_box_x[i] * m_heat_size) / m_out_size;
 		bbox_y[i] = (bounding_box_y[i] * m_heat_size) / m_out_size;

@@ -140,72 +140,151 @@ bool CVPR17_MSRAHandGesture::is_done()
     return m_index >= m_current_gts.size();
 }
 
-// GT Heatmap Tensors
-TensorLoader::TensorLoader(const std::string &dataset_dir, bool is_tensor)
-    : m_is_tensor(is_tensor)
+// GT Heatmap Loader
+GTHeatmapLoader::GTHeatmapLoader(const std::string &dataset_dir) :
+    m_subject_names{"P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"},
+    m_gesture_names{"1", "2", "3", "4", "5", "6", "7", "8", "9",
+                    "I", "IP", "L", "MP", "RP", "T", "TIP", "Y"},
+    m_plane_names{"XY", "YZ", "ZX"}
 {
+    m_dataset_dir = dataset_dir;
     m_index = 0;
+    m_current_subject = "";
+    m_current_gesture = "";
+}  
 
-    std::vector<std::filesystem::path> files_in_directory;
-    std::copy(std::filesystem::directory_iterator(dataset_dir), std::filesystem::directory_iterator(), std::back_inserter(files_in_directory));
-    std::sort(files_in_directory.begin(), files_in_directory.end());
-
-    for (const std::string &file : files_in_directory) {
-        m_tensor_paths.push_back(file);
-    }
-}
-
-torch::Tensor TensorLoader::get_current_tensor()
+void GTHeatmapLoader::set_current_set(int subject, int gesture)
 {
-    if (!m_is_tensor) {
-        std::cout << "[TensorLoader]: path is images for get_current_tensor()" << std::endl;
-        exit(EXIT_FAILURE); 
-    }
-    std::string tensor_path = m_tensor_paths[m_index];    
-    m_index++;
+    // Check if the provided subjects and gestures are valid
+    assert(subject >= 0 && subject < 9 && gesture >= 0 && gesture < 17);
+    m_current_subject = m_subject_names[subject];
+    m_current_gesture = m_gesture_names[gesture];
 
-    std::ifstream input(tensor_path, std::ios::binary);
-    std::vector<char> bytes(
-        (std::istreambuf_iterator<char>(input)),
-        (std::istreambuf_iterator<char>()));
-    input.close();
+    // Find the current directory and count the number of images
+    m_current_dir = m_dataset_dir + "/" + m_current_subject + "/" + m_current_gesture;
 
-    torch::IValue x = torch::pickle_load(bytes);
-    torch::Tensor to_return = x.toTensor();
-
-    return to_return;
-}
-
-std::vector<std::vector<cv::Mat>> TensorLoader::get_current_images() {
-    if (m_is_tensor) {
-        std::cout << "[TensorLoader]: path is tensors for get_current_images()" << std::endl;
-        exit(EXIT_FAILURE); 
-    }
-
-    std::string current_frame = m_tensor_paths[m_index];
-    m_index++;
-
-    std::vector<std::vector<cv::Mat>> to_return;
-    to_return.push_back(std::vector<cv::Mat>());
-    to_return.push_back(std::vector<cv::Mat>());
-    to_return.push_back(std::vector<cv::Mat>());
-
-    for (int i = 0; i < 3; i++) {
-        std::string heatmap_path = current_frame + "/" + planes[i];
-
-        std::vector<std::filesystem::path> files_in_directory;
-        std::copy(std::filesystem::directory_iterator(heatmap_path), std::filesystem::directory_iterator(), std::back_inserter(files_in_directory));
-        std::sort(files_in_directory.begin(), files_in_directory.end());
-
-        for (const std::string &file : files_in_directory) {
-            to_return[i].push_back(cv::imread(file, cv::IMREAD_GRAYSCALE));
+    m_num_images = 0;
+    auto dir_iterator = std::filesystem::directory_iterator(m_current_dir);
+    for (auto& entry : dir_iterator) {
+        if (entry.is_regular_file()) {
+            m_num_images++;
         }
     }
+    m_num_images /= (21 * 3);
 
-    return to_return;
-}   
+    std::cout << "Reading " << m_num_images << " heatmaps from subject " << m_current_subject << " with gesture " << m_current_gesture << std::endl;
 
-bool TensorLoader::is_done()
-{
-    return m_index >= m_tensor_paths.size();
+    // Reset the current image index to 0
+    m_index = 0;
 }
+
+std::array<std::array<cv::Mat, 3>, 21> GTHeatmapLoader::get_next_heatmaps()
+{
+    std::array<std::array<cv::Mat, 3>, 21> heatmaps;
+
+    // Utility string stream for reformatting
+    std::stringstream ss;
+    ss << std::setw(6) << std::setfill('0') << m_index;
+    std::string index_name = ss.str();
+    ss.str(std::string());
+
+    for (int j = 0; j < 21; j++) {
+        // Get heatmap name
+        ss << std::setw(2) << std::setfill('0') << j;
+        std::string heatmap_name = "-heatmap-" + ss.str() + ".txt";
+        ss.str(std::string());
+
+        // Get all planes of the joint
+        for (int i = 0; i < 3; i++) {
+            std::string path = m_current_dir + "/" + index_name + "_" + m_plane_names[i] + heatmap_name;
+            std::ifstream file(path);
+
+            heatmaps[j][i] = cv::Mat::zeros(18, 18, CV_32F);
+            for (int y = 0; y < 18; y++) {
+                for (int x = 0; x < 18; x++) {
+                    file >> heatmaps[j][i].at<float>(y, x);
+                }
+            }
+        }
+        break;
+    }
+
+    m_index++;
+    return heatmaps;
+}
+
+bool GTHeatmapLoader::is_done()
+{
+    return m_index >= m_num_images;
+}
+
+
+// GT Heatmap Tensors
+// TensorLoader::TensorLoader(const std::string &dataset_dir, bool is_tensor)
+//     : m_is_tensor(is_tensor)
+// {
+//     m_index = 0;
+
+//     std::vector<std::filesystem::path> files_in_directory;
+//     std::copy(std::filesystem::directory_iterator(dataset_dir), std::filesystem::directory_iterator(), std::back_inserter(files_in_directory));
+//     std::sort(files_in_directory.begin(), files_in_directory.end());
+
+//     for (const std::string &file : files_in_directory) {
+//         m_tensor_paths.push_back(file);
+//     }
+// }
+
+// torch::Tensor TensorLoader::get_current_tensor()
+// {
+//     if (!m_is_tensor) {
+//         std::cout << "[TensorLoader]: path is images for get_current_tensor()" << std::endl;
+//         exit(EXIT_FAILURE); 
+//     }
+//     std::string tensor_path = m_tensor_paths[m_index];    
+//     m_index++;
+
+//     std::ifstream input(tensor_path, std::ios::binary);
+//     std::vector<char> bytes(
+//         (std::istreambuf_iterator<char>(input)),
+//         (std::istreambuf_iterator<char>()));
+//     input.close();
+
+//     torch::IValue x = torch::pickle_load(bytes);
+//     torch::Tensor to_return = x.toTensor();
+
+//     return to_return;
+// }
+
+// std::vector<std::vector<cv::Mat>> TensorLoader::get_current_images() {
+//     if (m_is_tensor) {
+//         std::cout << "[TensorLoader]: path is tensors for get_current_images()" << std::endl;
+//         exit(EXIT_FAILURE); 
+//     }
+
+//     std::string current_frame = m_tensor_paths[m_index];
+//     m_index++;
+
+//     std::vector<std::vector<cv::Mat>> to_return;
+//     to_return.push_back(std::vector<cv::Mat>());
+//     to_return.push_back(std::vector<cv::Mat>());
+//     to_return.push_back(std::vector<cv::Mat>());
+
+//     for (int i = 0; i < 3; i++) {
+//         std::string heatmap_path = current_frame + "/" + planes[i];
+
+//         std::vector<std::filesystem::path> files_in_directory;
+//         std::copy(std::filesystem::directory_iterator(heatmap_path), std::filesystem::directory_iterator(), std::back_inserter(files_in_directory));
+//         std::sort(files_in_directory.begin(), files_in_directory.end());
+
+//         for (const std::string &file : files_in_directory) {
+//             to_return[i].push_back(cv::imread(file, cv::IMREAD_GRAYSCALE));
+//         }
+//     }
+
+//     return to_return;
+// }   
+
+// bool TensorLoader::is_done()
+// {
+//     return m_index >= m_tensor_paths.size();
+// }

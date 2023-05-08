@@ -5,50 +5,46 @@
 #include <vector>
 #include <eigen3/Eigen/Dense>
 #include <opencv2/opencv.hpp>
-#include <torch/torch.h>
-#include <torch/script.h>
+// #include <torch/torch.h>
+// #include <torch/script.h>
 
-class HeatmapFuser {
+class HeatmapFuser 
+{
+public:
+	static const int max_pca_size = 63;
+
 private:
     // Set at initialization (parameters of the camera)
     int m_x_res, m_y_res;
     double m_focal_length;
     int m_out_size, m_heat_size;
 
-    std::array<double, 3> bbox_x;
-    std::array<double, 3> bbox_y;
-    std::array<double, 3> bbox_w;
-    std::array<double, 3> bbox_h;
+    std::array<double, 3> m_bbox_x;
+    std::array<double, 3> m_bbox_y;
+	std::array<double, 3> m_proj_k;
+    std::array<double, 3> m_bbox_w;
+    std::array<double, 3> m_bbox_h;
 
-    DepthProjector * depth_projector;
+    DepthProjector m_depth_projector;
 
-    std::vector<std::vector<Eigen::Vector4f> > pca_eigen_vecs_bb;	// PCA_SZ x HEAT_NUM
-	std::vector<Eigen::Vector4f> pca_means_bb;		// HEAT_NUM
+	int m_pca_size; 
+    std::vector<std::vector<Eigen::Vector4f> > m_pca_eigenvector_bbox;	// PCA_SZ x HEAT_NUM
+	std::vector<Eigen::Vector4f> m_pca_mean_bbox;		// HEAT_NUM
+	cv::PCA m_pca_fuser;
 
-	std::vector<Eigen::Vector4f> joints_means_bb;		// HEAT_NUM
-	std::vector<Eigen::Vector4f> joints_variance_bb;	// HEAT_NUM
-	std::vector<Eigen::Matrix3f> joints_covariance_bb;	// HEAT_NUM
-	std::vector<Eigen::Matrix3f> joints_inv_covariance_bb;	// HEAT_NUM
+	std::vector<Eigen::Vector4f> m_joints_means_bb;		// HEAT_NUM
+	std::vector<Eigen::Vector4f> m_joints_variance_bb;	// HEAT_NUM
+	std::vector<Eigen::Matrix3f> m_joints_covariance_bb;	// HEAT_NUM
+	std::vector<Eigen::Matrix3f> m_joints_inv_covariance_bb;	// HEAT_NUM
+	int m_num_estimate_gauss_failed;
+
+	std::array<std::array<cv::Mat, 3>, 21> m_heatmaps;
     
 public:
     HeatmapFuser(int x_res, int y_res, double focal_length, int out_size, int m_heat_size);
 
+	bool load_pca(const std::string &path);
     bool load_model(const std::string &path);
-    torch::Tensor load_tensor(const std::string &path);
-    
-    cv::PCA fuser_pca;
-	int PCA_SZ;
-
-	double bounding_box_x[3];
-	double bounding_box_y[3];
-	double proj_k[3];
-	double bounding_box_width[3];
-	double bounding_box_height[3];
-
-
-	std::vector<cv::Mat> heatmaps_vec;
-
-	int estimate_gauss_failed_cnt;
 
     void fuse(float* estimate_xyz);			// return xyz in world cs (96 x 96 3d space) - gauss covariance + PCA
 	void fuse_sub(float* estimate_xyz);		// return xyz in world cs (96 x 96 3d space) - mean-shift

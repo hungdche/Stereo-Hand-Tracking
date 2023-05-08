@@ -13,8 +13,6 @@
 
 #include <eigen3/Eigen/Dense>
 #include <opencv2/opencv.hpp>
-#include <torch/torch.h>
-#include <torch/script.h>
 
 class ICIP17_StereoHandPose 
 {
@@ -62,20 +60,41 @@ public:
     bool is_done();
 };
 
-class TensorLoader {
+class GTHeatmapLoader
+{
 private:
-    int m_index;
-    bool m_is_tensor;
-    const std::string planes[3] = {"XY", "YZ", "ZX"};
-    
-    std::vector<std::string> m_tensor_paths;
-public:
-    TensorLoader(const std::string &dataset_dir, bool is_tensor=false);
+    std::string m_dataset_dir;
+    std::string m_current_subject, m_current_gesture;
+    std::string m_current_dir;
+    int m_num_images, m_index;
 
-    torch::Tensor get_current_tensor();
-    std::vector<std::vector<cv::Mat>> get_current_images();
+    const std::array<std::string, 9> m_subject_names;
+    const std::array<std::string, 17> m_gesture_names;
+    const std::array<std::string, 3> m_plane_names;
+
+public:
+    GTHeatmapLoader(const std::string &dataset_dir);
+
+    void set_current_set(int subject, int gesture);
+    std::array<std::array<cv::Mat, 3>, 21> get_next_heatmaps();
 
     bool is_done();
 };
+
+// class TensorLoader {
+// private:
+//     int m_index;
+//     bool m_is_tensor;
+//     const std::string planes[3] = {"XY", "YZ", "ZX"};
+    
+//     std::vector<std::string> m_tensor_paths;
+// public:
+//     TensorLoader(const std::string &dataset_dir, bool is_tensor=false);
+
+//     torch::Tensor get_current_tensor();
+//     std::vector<std::vector<cv::Mat>> get_current_images();
+
+//     bool is_done();
+// };
 
 #endif // __DATASET_LOADER_H__
