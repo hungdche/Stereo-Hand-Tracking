@@ -9,7 +9,7 @@
 #include "hand_segmentation.h"
 
 #define STEREO_DEBUG
-// #define SHOW_TIME
+#define SHOW_TIME
 
 int main(int argc, char** argv )
 {
@@ -57,17 +57,18 @@ int main(int argc, char** argv )
         /* PRINT COMPUTATION TIME */
         // hand model
     #ifdef SHOW_TIME
+        // std::cout << "FRAME: " << frame << std::endl;
         auto hand_model_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(hand_model_end - hand_model_start);
-        std::cout << "Hand model: " << hand_model_duration.count() << " ns" << std::endl;
+        // std::cout << "Hand model: " << hand_model_duration.count() << " ns" << std::endl;
         // stereo matching
         auto stereo_matching_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stereo_matching_end - stereo_matching_start);
-        std::cout << "Stereo Matching: " << stereo_matching_duration.count() << " ns" << std::endl;
+        // std::cout << "Stereo Matching: " << stereo_matching_duration.count() << " ns" << std::endl;
         // hand segmentation
         auto hand_segmentation_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(hand_segmentation_end - hand_segmentation_start);
-        std::cout << "Hand Segmentation: " << hand_segmentation_duration.count() << " ns" << std::endl;
+        // std::cout << "Hand Segmentation: " << hand_segmentation_duration.count() << " ns" << std::endl;
         // total time 
         auto total_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(hand_segmentation_end - hand_model_start);
-        std::cout << "Total Time: " << total_duration.count() << " ns" << std::endl;
+        std::cout << "Frame: " << frame << " " << total_duration.count() << " ns" << std::endl;
     #endif
 
         /* PRINT IMAGES */
