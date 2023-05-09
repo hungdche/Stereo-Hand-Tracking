@@ -37,6 +37,7 @@ private:
 	int m_num_estimate_gauss_failed;
 
 	std::array<std::array<cv::Mat, 3>, 21> m_heatmaps;
+	std::array<std::array<cv::Mat, 3>, 21> m_estimated_heatmaps;
 	std::array<Eigen::Vector3f, 21> m_estimated_joints_xyz; 
 
 	void fuse_sub();		// return xyz in world cs (96 x 96 3d space) - mean-shift
@@ -51,6 +52,7 @@ public:
     void fuse();			// return xyz in world cs (96 x 96 3d space) - gauss covariance + PCA
 
 	const std::array<Eigen::Vector3f, 21>& get_estimated_joints() const {return m_estimated_joints_xyz;}
+	const std::array<std::array<cv::Mat, 3>, 21>& get_estimated_heatmaps() const {return m_estimated_heatmaps;}
 
 private:
 	Eigen::Vector4f estimate_joint_xyz(int joint_i);	// return xyz in BB cs (96 x 96 3d space)

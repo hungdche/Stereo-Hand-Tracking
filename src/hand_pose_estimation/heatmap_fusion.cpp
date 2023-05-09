@@ -88,11 +88,17 @@ bool HeatmapFuser::load_data(const cv::Mat &depth_image, const cv::Rect &bbox, c
 void HeatmapFuser::load_heatmaps(std::array<std::array<cv::Mat, 3>, 21> &heatmaps)
 {
 	m_heatmaps = heatmaps;
-}
 
-void HeatmapFuser::coarse_fuse()
-{
-	
+	for (int j = 0; j < 21; j++) {
+		for (int i = 0; i < 3; i++) {
+			cv::Mat estimated_heatmap = m_heatmaps[j][i].clone();
+			double min, max; 
+			cv::Point min_loc, max_loc;
+			cv::minMaxLoc(estimated_heatmap, &min, &max, &min_loc, &max_loc);
+			estimated_heatmap /= max;
+			cv::cvtColor(estimated_heatmap, m_estimated_heatmaps[j][i], cv::COLOR_GRAY2RGB);
+		}
+	}
 }
 
 void HeatmapFuser::fuse()	// joint optimization using covariance
@@ -105,7 +111,6 @@ void HeatmapFuser::fuse()	// joint optimization using covariance
 	for (joint_idx = 0; joint_idx < JOINT_NUM; joint_idx++) {
 		Eigen::Vector4f mean_18;
 		if (!estimate_gauss_mean_covariance(joint_idx, mean_18, m_joints_covariance_bb[joint_idx])) {
-			std::cout << "Failed on " << joint_idx << std::endl;
 			break;
 		}
 
@@ -176,17 +181,17 @@ void HeatmapFuser::fuse()	// joint optimization using covariance
 		if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
 			std::cout << "Joint " << joint_idx << ": xy out" << std::endl;
 		}
-		cv::circle(m_heatmaps[joint_idx][0], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
+		cv::circle(m_estimated_heatmaps[joint_idx][0], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
 		_3d_yz(estimate_pt_18[1], estimate_pt_18[2], u, v);
 		if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
 			std::cout << "Joint " << joint_idx << ": yz out" << std::endl;
 		}
-		cv::circle(m_heatmaps[joint_idx][1], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
+		cv::circle(m_estimated_heatmaps[joint_idx][1], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
 		_3d_zx(estimate_pt_18[2], estimate_pt_18[0], u, v);
 		if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
 			std::cout << "Joint " << joint_idx << ": zx out" << std::endl;
 		}
-		cv::circle(m_heatmaps[joint_idx][2], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
+		cv::circle(m_estimated_heatmaps[joint_idx][2], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
 		//////////////draw estimate points on heat-maps//////////////
 		//*/
 
@@ -300,17 +305,17 @@ Eigen::Vector4f HeatmapFuser::estimate_joint_xyz(int joint)
 	if (u<0 || v<0 || u >= m_heat_size || v >= m_heat_size) {
 		std::cout << "Joint " << joint << ": xy out" << std::endl;
 	}
-	cv::circle(m_heatmaps[joint][0], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
+	cv::circle(m_estimated_heatmaps[joint][0], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
 	_3d_yz(cur_pt[1], cur_pt[2], u, v);
 	if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
 		std::cout << "Joint " << joint << ": yz out" << std::endl;
 	}
-	cv::circle(m_heatmaps[joint][1], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
+	cv::circle(m_estimated_heatmaps[joint][1], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
 	_3d_zx(cur_pt[2], cur_pt[0], u, v);
 	if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
 		std::cout << "Joint " << joint << ": zx out" << std::endl;
 	}
-	cv::circle(m_heatmaps[joint][2], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
+	cv::circle(m_estimated_heatmaps[joint][2], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
 
 	Eigen::Vector4f pt_96;
 	xyz_18_96(cur_pt, pt_96);
@@ -431,20 +436,20 @@ void HeatmapFuser::_2d_3d(int view_type, int u, int v, cv::Point3d& pt)
 
 void HeatmapFuser::xy_3d(int u, int v, double& x, double& y)
 {
-	x = (u - m_bbox[0].x + 1) / m_proj_k[0];
-	y = (v - m_bbox[0].y + 1) / m_proj_k[0];
+	x = (u - m_bbox_18[0].x + 1) / m_proj_k[0];
+	y = (v - m_bbox_18[0].y + 1) / m_proj_k[0];
 }
 
 void HeatmapFuser::yz_3d(int u, int v, double& y, double& z)
 {
-	y = (u - m_bbox[1].x + 1) / m_proj_k[1];
-	z = (v - m_bbox[1].y + 1) / m_proj_k[1];
+	y = (u - m_bbox_18[1].x + 1) / m_proj_k[1];
+	z = (v - m_bbox_18[1].y + 1) / m_proj_k[1];
 }
 
 void HeatmapFuser::zx_3d(int u, int v, double& z, double& x)
 {
-	z = (u - m_bbox[2].x + 1) / m_proj_k[2];
-	x = (v - m_bbox[2].y + 1) / m_proj_k[2];
+	z = (u - m_bbox_18[2].x + 1) / m_proj_k[2];
+	x = (v - m_bbox_18[2].y + 1) / m_proj_k[2];
 }
 
 void HeatmapFuser::xyz_18_96(const Eigen::Vector4f& xyz_18, Eigen::Vector4f& xyz_96)
@@ -465,20 +470,20 @@ void HeatmapFuser::xyz_96_18(const Eigen::Vector4f& xyz_96, Eigen::Vector4f& xyz
 
 void HeatmapFuser::_3d_xy(double x, double y, int& u, int& v)
 {
-	u = (int) (m_proj_k[0] * x + m_bbox[0].x);
-	v = (int) (m_proj_k[0] * y + m_bbox[0].y);
+	u = (int) (m_proj_k[0] * x + m_bbox_18[0].x);
+	v = (int) (m_proj_k[0] * y + m_bbox_18[0].y);
 }
 
 void HeatmapFuser::_3d_yz(double y, double z, int& u, int& v)
 {
-	u = (int) (m_proj_k[1] * y + m_bbox[1].x);
-	v = (int) (m_proj_k[1] * z + m_bbox[1].y);
+	u = (int) (m_proj_k[1] * y + m_bbox_18[1].x);
+	v = (int) (m_proj_k[1] * z + m_bbox_18[1].y);
 }
 
 void HeatmapFuser::_3d_zx(double z, double x, int& u, int& v)
 {
-	u = (int) (m_proj_k[2] * z + m_bbox[2].x);
-	v = (int) (m_proj_k[2] * x + m_bbox[2].y);
+	u = (int) (m_proj_k[2] * z + m_bbox_18[2].x);
+	v = (int) (m_proj_k[2] * x + m_bbox_18[2].y);
 }
 
 void HeatmapFuser::convert_pca_world_to_bbox()

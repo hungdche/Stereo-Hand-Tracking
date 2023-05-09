@@ -121,6 +121,23 @@ int main(int argc, char** argv )
 
                 std::cout << "Average distance: " << average_distance << std::endl;
 
+                const auto& estimated_heatmaps = fuser.get_estimated_heatmaps();
+                if (visualize) {
+                    for (int j = 0; j < 21; j++) {
+                        cv::waitKey(0);
+                        for (int i = 0; i < 3; i++) {
+                            auto heatmap = estimated_heatmaps[j][i];
+
+                            cv::Size resize(20 * heatmap.cols, 20 * heatmap.rows);
+                            cv::Mat resized_heatmap;
+                            cv::resize(heatmap, resized_heatmap, resize, 0, 0, cv::INTER_NEAREST);
+
+                            cv::resizeWindow("Heatmap " + std::to_string(i), resize);
+                            cv::imshow("Heatmap " + std::to_string(i), resized_heatmap);
+                        }
+                    }
+                }
+
                 // Wait for user input before continuing
                 if (visualize) {
                     cv::waitKey(0);
