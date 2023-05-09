@@ -291,9 +291,9 @@ Eigen::Vector4f HeatmapFuser::estimate_joint_xyz(int joint)
 			x_num3 += tmp*pts_weights[2][j].y;
 		}
 
-		cur_pt[0] = (lambda[0] * x_num1 + lambda[2] * x_num3) / (lambda[0] * x_den1 + lambda[2] * x_den3);
-		cur_pt[1] = (lambda[0] * y_num1 + lambda[1] * y_num2) / (lambda[0] * y_den1 + lambda[1] * y_den2);
-		cur_pt[2] = (lambda[1] * z_num2 + lambda[2] * z_num3) / (lambda[1] * z_den2 + lambda[2] * z_den3);
+		cur_pt[0] = (lambda[0] * x_num1 + lambda[2] * x_num3) / (lambda[0] * x_den1 + lambda[2] * x_den3 + 0.0001);
+		cur_pt[1] = (lambda[0] * y_num1 + lambda[1] * y_num2) / (lambda[0] * y_den1 + lambda[1] * y_den2 + 0.0001);
+		cur_pt[2] = (lambda[1] * z_num2 + lambda[2] * z_num3) / (lambda[1] * z_den2 + lambda[2] * z_den3 + 0.0001);
 		//cur_pt[2] = (z_num2 + z_num3) / (z_den2 + z_den3);
 
 		diff = pre_pt - cur_pt;

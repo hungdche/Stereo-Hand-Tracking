@@ -10,7 +10,7 @@
 #include "depth_projector.h"
 #include "heatmap_fusion.h"
 
-#define SHOW_TIME
+// #define SHOW_TIME
 // #define SAVE_IMAGES
 
 // const std::string planes[3] = {"XY", "YZ", "ZX"};
@@ -37,7 +37,7 @@ int main(int argc, char** argv )
 
     fuser.load_pca(argv[3]);
 
-    bool visualize = false;
+    bool visualize = true;
     bool per_joint_error = false;
     if (visualize) {
         cv::namedWindow("Heatmap 0");
