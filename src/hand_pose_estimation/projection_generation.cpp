@@ -23,7 +23,8 @@ int main(int argc, char** argv )
                              96, 18);
     const std::string output_directory{argv[2]};
 
-    bool visualize = false;
+    bool visualize = true;
+    bool visualize_joints = true;
     if (visualize) {
         cv::namedWindow("Depth Image");
         cv::namedWindow("Heatmap 0");
@@ -47,7 +48,7 @@ int main(int argc, char** argv )
                 if (visualize) {
                     cv::Size resize(4 * bbox.width, 4 * bbox.height);
                     cv::Mat resized_depth;
-                    cv::resize(depth, resized_depth, resize);
+                    cv::resize(depth, resized_depth, resize, 0, 0, cv::INTER_NEAREST);
                     resized_depth /= 1000.0;
                     cv::resizeWindow("Depth Image", resize);
                     cv::imshow("Depth Image", resized_depth);
@@ -67,13 +68,16 @@ int main(int argc, char** argv )
 
                         cv::Mat recolor;
                         cv::cvtColor(plane, recolor, CV_GRAY2RGB);
-                        for (int j = 0; j < 21; j++) {
-                            cv::circle(recolor, heatmap[j], 1, cv::Scalar(0,0, 255, 0), CV_FILLED, CV_AA, 0);
-                        }
-
                         cv::Size resize(4 * plane.cols, 4 * plane.rows);
                         cv::Mat resized_image;
-                        cv::resize(recolor, resized_image, resize);
+                        cv::resize(recolor, resized_image, resize, 0, 0, cv::INTER_NEAREST);
+
+                        if (visualize_joints) {
+                            for (int j = 0; j < 21; j++) {
+                                cv::circle(resized_image, 4 * heatmap[j], 5, cv::Scalar(0,0, 255, 0), CV_FILLED, CV_AA, 0);
+                            }
+                        }
+
                         cv::resizeWindow("Heatmap " + std::to_string(i), resize);
                         cv::imshow("Heatmap " + std::to_string(i), resized_image);
                     }
