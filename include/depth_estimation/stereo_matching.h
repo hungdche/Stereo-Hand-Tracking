@@ -13,7 +13,7 @@ class StereoMatcher {
 private:
     // StereoBM
     int _m_num_disp   = 9;
-    int _m_block_size = 2;
+    int _m_block_size = 3;
     int _m_pref_type  = 1;
     int _m_pref_size  = 25;
     int _m_pref_cap   = 62;
@@ -33,8 +33,8 @@ private:
     int _m_foreg_eps = 8;
 
     // Color Guided Filter
-    int _m_color_radius = 19;
-    int _m_color_eps = 13;
+    int _m_color_radius = 2;
+    int _m_color_eps = 0;
 
     // matchers
     cv::Ptr<cv::StereoBM> left_matcher;

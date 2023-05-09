@@ -47,17 +47,21 @@ cv::Mat StereoMatcher::filter_guided(const cv::Mat guider, const cv::Mat input, 
 }
 
 cv::Mat StereoMatcher::compute(const cv::Mat &left_color, const cv::Mat &right_color, const cv::Mat &foreground) {
+    cv::Mat left_scaled, right_scaled;
+    cv::resize(left_color ,left_scaled ,cv::Size(),0.5,0.5, cv::INTER_LINEAR_EXACT);
+    cv::resize(right_color,right_scaled,cv::Size(),0.5,0.5, cv::INTER_LINEAR_EXACT);
+
     cv::Mat left_gray, right_gray;
-    cv::cvtColor(left_color, left_gray, cv::COLOR_BGR2GRAY);
-    cv::cvtColor(right_color, right_gray, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(left_scaled, left_gray, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(right_scaled, right_gray, cv::COLOR_BGR2GRAY);
 
     cv::Mat disparity, filtered, final_depth;
     disparity = compute_disparity(left_gray, right_gray, left_color);
     cv::ximgproc::getDisparityVis(disparity,disparity,1);
     filtered = filter_guided(foreground, disparity, _m_foreg_radius, _m_foreg_eps);
-    final_depth = filter_guided(left_color, filtered, _m_color_radius, _m_color_radius);
-    final_depth.convertTo(final_depth,CV_32F, 1.0);
-    return final_depth;
+    // final_depth = filter_guided(left_color, filtered, _m_color_radius, _m_color_radius);
+    // final_depth.convertTo(final_depth,CV_32F, 1.0);
+    return filtered;
 }
 
 #pragma region DEBUG_VAR
@@ -167,14 +171,14 @@ cv::Mat StereoMatcher::debug(const cv::Mat &left_color, const cv::Mat &right_col
     cv::createTrackbar("wlsLambda", "disparity", &debug_wls_lambda, 8, _wls_lambda_bar, &wls_filter);
 
     // downscale the images
-    // cv::Mat left_scaled, right_scaled;
-    // cv::resize(left_color ,left_scaled ,cv::Size(),0.5,0.5, cv::INTER_LINEAR_EXACT);
-    // cv::resize(right_color,right_scaled,cv::Size(),0.5,0.5, cv::INTER_LINEAR_EXACT);
+    cv::Mat left_scaled, right_scaled;
+    cv::resize(left_color ,left_scaled ,cv::Size(),0.5,0.5, cv::INTER_LINEAR_EXACT);
+    cv::resize(right_color,right_scaled,cv::Size(),0.5,0.5, cv::INTER_LINEAR_EXACT);
 
     // Converting images to grayscale
     cv::Mat left_gray, right_gray;
-    cv::cvtColor(left_color, left_gray, cv::COLOR_BGR2GRAY);
-    cv::cvtColor(right_color, right_gray, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(left_scaled, left_gray, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(right_scaled, right_gray, cv::COLOR_BGR2GRAY);
 
     // Obtaining ideal params for initial disparity
     cv::Mat raw_disp;
@@ -206,17 +210,6 @@ cv::Mat StereoMatcher::debug(const cv::Mat &left_color, const cv::Mat &right_col
     _m_wls_lambda = debug_wls_lambda;
     _m_wls_sigma  = debug_wls_sigma;
 
-    // showing the confidence of the latest WLS Filter call
-    cv::namedWindow("confidence",cv::WINDOW_NORMAL);
-    cv::Mat conf = wls_filter->getConfidenceMap();
-    cv::imshow("confidence",conf);
-    while (cv::getWindowProperty("confidence", cv::WND_PROP_AUTOSIZE) >= 0) {
-        // cv::imshow("confidence",conf);
-        if (cv::waitKey(20) == 27){
-            cv::destroyAllWindows();
-            break;
-        }
-    }
 
     // showing the foreground filter window
     cv::namedWindow("foreground_filter",cv::WINDOW_NORMAL);
