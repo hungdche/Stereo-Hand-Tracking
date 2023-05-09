@@ -10,6 +10,8 @@
 #include "depth_projector.h"
 #include "heatmap_fusion.h"
 
+#define SHOW_TIME
+
 // const std::string planes[3] = {"XY", "YZ", "ZX"};
 
 int main(int argc, char** argv )
@@ -28,7 +30,7 @@ int main(int argc, char** argv )
 
     fuser.load_pca(argv[3]);
 
-    bool visualize = true;
+    bool visualize = false;
     if (visualize) {
         cv::namedWindow("Heatmap 0");
         cv::namedWindow("Heatmap 1");
@@ -38,7 +40,8 @@ int main(int argc, char** argv )
     // We only evaluate the P0 
     for (int subject = 0; subject < 9; subject++) {
         for (int gesture = 0; gesture < 17; gesture++) {
-            int image_index = 0;
+            int frame = 0;
+            int total_time_ns = 0;
 
             dataset.set_current_set(subject, gesture);
             heatmap_loader.set_current_set(subject, gesture);
@@ -82,7 +85,16 @@ int main(int argc, char** argv )
                 fuser.load_data(depth, bbox, gt_joints);
                 fuser.load_heatmaps(heatmaps);
 
+                auto fusion_start = std::chrono::high_resolution_clock::now();
                 fuser.fuse();
+                auto fusion_end = std::chrono::high_resolution_clock::now();
+
+                // total time 
+                auto total_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(fusion_end - fusion_start);
+            #ifdef SHOW_TIME
+                std::cout << "Frame: " << frame << " " << total_duration.count() << " ns" << std::endl;
+            #endif
+                total_time_ns += total_duration.count();
 
                 const auto& estimated_joints = fuser.get_estimated_joints();
 
@@ -143,14 +155,20 @@ int main(int argc, char** argv )
                     cv::waitKey(0);
                 }
 
-                image_index++;
-                break;
+                frame++;
             }
 
+            // Only evaluate time for the first subject and gesture
+        #ifdef SHOW_TIME
+            std::cout << "Average time: " << total_time_ns / (float) frame << std::endl;
             break;
+        #endif
         }
 
+        // Only evaluate time for the first subject and gesture
+    #ifdef SHOW_TIME
         break;
+    #endif
     }
 
     cv::destroyAllWindows();

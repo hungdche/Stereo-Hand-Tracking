@@ -7,6 +7,8 @@
 #include "dataset_loader.h"
 #include "depth_projector.h"
 
+#define SHOW_TIME
+
 const std::string planes[3] = {"XY", "YZ", "ZX"};
 
 int main(int argc, char** argv )
@@ -23,8 +25,8 @@ int main(int argc, char** argv )
                              96, 18);
     const std::string output_directory{argv[2]};
 
-    bool visualize = true;
-    bool visualize_joints = true;
+    bool visualize = false;
+    bool visualize_joints = false;
     if (visualize) {
         cv::namedWindow("Depth Image");
         cv::namedWindow("Heatmap 0");
@@ -34,7 +36,8 @@ int main(int argc, char** argv )
 
     for (int subject = 0; subject < 9; subject++) {
         for (int gesture = 0; gesture < 17; gesture++) {
-            int image_index = 0;
+            int frame = 0;
+            int total_time_ns = 0;
 
             dataset.set_current_set(subject, gesture);
             while (!dataset.is_done()) {
@@ -55,7 +58,17 @@ int main(int argc, char** argv )
                 }
 
                 // Project on XY, YZ, and XZ planes
+                auto projection_start = std::chrono::high_resolution_clock::now();
                 projector.load_data(depth, bbox, gt);
+                auto projection_end = std::chrono::high_resolution_clock::now();
+            
+                // total time 
+                auto total_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(projection_end - projection_start);
+            #ifdef SHOW_TIME
+                std::cout << "Frame: " << frame << " " << total_duration.count() << " ns" << std::endl;
+            #endif
+                total_time_ns += total_duration.count();
+
                 auto projections = projector.get_projections();
                 auto heatmap_uvs = projector.get_heatmap_uvs();
                 auto bboxes = projector.get_proj_bbox();
@@ -89,7 +102,7 @@ int main(int argc, char** argv )
 
                 // Reformat the index to be 6 digits
                 std::stringstream ss;
-                ss << std::setw(6) << std::setfill('0') << image_index;
+                ss << std::setw(6) << std::setfill('0') << frame;
                 const std::string index_name{ss.str()};
 
                 // Create the directory if it doesn't exist
@@ -137,9 +150,20 @@ int main(int argc, char** argv )
                     cv::waitKey(0);
                 }
 
-                image_index++;
+                frame++;
             }
+
+            // Only evaluate time for the first subject and gesture
+        #ifdef SHOW_TIME
+            std::cout << "Average time: " << total_time_ns / (float) frame << std::endl;
+            break;
+        #endif
         }
+    
+        // Only evaluate time for the first subject and gesture
+    #ifdef SHOW_TIME
+        break;
+    #endif
     }
 
     cv::destroyAllWindows();
