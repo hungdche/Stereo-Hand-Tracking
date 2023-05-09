@@ -178,19 +178,19 @@ void HeatmapFuser::fuse()	// joint optimization using covariance
 		xyz_96_18(estimate_pt, estimate_pt_18);
 		int u, v;
 		_3d_xy(estimate_pt_18[0], estimate_pt_18[1], u, v);
-		if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
-			std::cout << "Joint " << joint_idx << ": xy out" << std::endl;
-		}
+		// if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
+		// 	std::cout << "Joint " << joint_idx << ": xy out" << std::endl;
+		// }
 		cv::circle(m_estimated_heatmaps[joint_idx][0], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
 		_3d_yz(estimate_pt_18[1], estimate_pt_18[2], u, v);
-		if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
-			std::cout << "Joint " << joint_idx << ": yz out" << std::endl;
-		}
+		// if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
+		// 	std::cout << "Joint " << joint_idx << ": yz out" << std::endl;
+		// }
 		cv::circle(m_estimated_heatmaps[joint_idx][1], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
 		_3d_zx(estimate_pt_18[2], estimate_pt_18[0], u, v);
-		if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
-			std::cout << "Joint " << joint_idx << ": zx out" << std::endl;
-		}
+		// if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
+		// 	std::cout << "Joint " << joint_idx << ": zx out" << std::endl;
+		// }
 		cv::circle(m_estimated_heatmaps[joint_idx][2], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
 		//////////////draw estimate points on heat-maps//////////////
 		//*/
@@ -302,19 +302,19 @@ Eigen::Vector4f HeatmapFuser::estimate_joint_xyz(int joint)
 	//*/
 	int u, v;
 	_3d_xy(cur_pt[0], cur_pt[1], u, v);
-	if (u<0 || v<0 || u >= m_heat_size || v >= m_heat_size) {
-		std::cout << "Joint " << joint << ": xy out" << std::endl;
-	}
+	// if (u<0 || v<0 || u >= m_heat_size || v >= m_heat_size) {
+	// 	std::cout << "Joint " << joint << ": xy out" << std::endl;
+	// }
 	cv::circle(m_estimated_heatmaps[joint][0], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
 	_3d_yz(cur_pt[1], cur_pt[2], u, v);
-	if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
-		std::cout << "Joint " << joint << ": yz out" << std::endl;
-	}
+	// if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
+	// 	std::cout << "Joint " << joint << ": yz out" << std::endl;
+	// }
 	cv::circle(m_estimated_heatmaps[joint][1], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
 	_3d_zx(cur_pt[2], cur_pt[0], u, v);
-	if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
-		std::cout << "Joint " << joint << ": zx out" << std::endl;
-	}
+	// if (u < 0 || v < 0 || u >= m_heat_size || v >= m_heat_size) {
+	// 	std::cout << "Joint " << joint << ": zx out" << std::endl;
+	// }
 	cv::circle(m_estimated_heatmaps[joint][2], cv::Point(u, v), 2, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
 
 	Eigen::Vector4f pt_96;

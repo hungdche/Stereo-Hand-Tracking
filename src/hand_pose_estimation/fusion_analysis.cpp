@@ -11,16 +11,23 @@
 #include "heatmap_fusion.h"
 
 #define SHOW_TIME
+// #define SAVE_IMAGES
 
 // const std::string planes[3] = {"XY", "YZ", "ZX"};
 
 int main(int argc, char** argv )
 {
-    if (argc != 4)
-    {
+#ifdef SAVE_IMAGES
+    if (argc != 5) {
         std::cout << "usage: ./fusion_visualization [projections_directory] [heatmaps_dir] [pca_dir]" << std::endl;
         return -1;
     }
+#else
+    if (argc != 4) {
+        std::cout << "usage: ./fusion_visualization [projections_directory] [heatmaps_dir] [pca_dir]" << std::endl;
+        return -1;
+    }
+#endif
 
     CVPR17_MSRAHandGesture dataset{argv[1]};
     GTHeatmapLoader heatmap_loader{argv[2]};
@@ -31,6 +38,7 @@ int main(int argc, char** argv )
     fuser.load_pca(argv[3]);
 
     bool visualize = false;
+    bool per_joint_error = false;
     if (visualize) {
         cv::namedWindow("Heatmap 0");
         cv::namedWindow("Heatmap 1");
@@ -39,9 +47,13 @@ int main(int argc, char** argv )
 
     // We only evaluate the P0 
     for (int subject = 0; subject < 9; subject++) {
+        int image_count = 0;
+        float average_subject_distance = 0.0f;
+
         for (int gesture = 0; gesture < 17; gesture++) {
             int frame = 0;
-            int total_time_ns = 0;
+            int64_t total_time_ns = 0;
+            float average_gesture_distance = 0.0f;
 
             dataset.set_current_set(subject, gesture);
             heatmap_loader.set_current_set(subject, gesture);
@@ -82,10 +94,9 @@ int main(int argc, char** argv )
                     }
                 }
 
+                auto fusion_start = std::chrono::high_resolution_clock::now();
                 fuser.load_data(depth, bbox, gt_joints);
                 fuser.load_heatmaps(heatmaps);
-
-                auto fusion_start = std::chrono::high_resolution_clock::now();
                 fuser.fuse();
                 auto fusion_end = std::chrono::high_resolution_clock::now();
 
@@ -101,37 +112,40 @@ int main(int argc, char** argv )
                 float total_distance = 0.0f;
                 std::array<float, 21> distances;
                 for (int i = 0; i < 21; i++) {
-                    std::cout << "Joint " << i << " Analysis" << std::endl;
-
-                    std::cout << "GT: ";
-                    for (int k = 0; k < 3; k++) {
-                        std::cout << gt_joints[i][k] << " ";
-                    }
-                    std::cout << std::endl;
-
-                    std::cout << "Estimate: ";
-                    for (int k = 0; k < 3; k++) {
-                        std::cout << estimated_joints[i][k] << " ";
-                    }
-                    std::cout << std::endl;
-
                     Eigen::Vector3f curr_error = estimated_joints[i] - gt_joints[i];
-
-                    std::cout << "Error: ";
-                    for (int k = 0; k < 3; k++) {
-                        std::cout << curr_error[k] << " ";
-                    }
-                    std::cout << std::endl;
-
                     distances[i] = curr_error.norm();
                     total_distance += distances[i];
 
-                    std::cout << "Error: " << distances[i] << std::endl;
-                    std::cout << std::endl;
+                    if (per_joint_error) {
+                        std::cout << "Joint " << i << " Analysis" << std::endl;
+
+                        std::cout << "GT: ";
+                        for (int k = 0; k < 3; k++) {
+                            std::cout << gt_joints[i][k] << " ";
+                        }
+                        std::cout << std::endl;
+
+                        std::cout << "Estimate: ";
+                        for (int k = 0; k < 3; k++) {
+                            std::cout << estimated_joints[i][k] << " ";
+                        }
+                        std::cout << std::endl;
+
+                        std::cout << "Error: ";
+                        for (int k = 0; k < 3; k++) {
+                            std::cout << curr_error[k] << " ";
+                        }
+                        std::cout << std::endl;
+
+                        std::cout << "Error: " << distances[i] << std::endl;
+                        std::cout << std::endl;
+                    }
                 }
                 float average_distance = total_distance / 21;
+                average_gesture_distance += average_distance;
+                average_subject_distance += average_distance;
 
-                std::cout << "Average distance: " << average_distance << std::endl;
+                // std::cout << "Average distance: " << average_distance << std::endl;
 
                 const auto& estimated_heatmaps = fuser.get_estimated_heatmaps();
                 if (visualize) {
@@ -156,7 +170,11 @@ int main(int argc, char** argv )
                 }
 
                 frame++;
+                image_count++;
             }
+
+            average_gesture_distance /= frame;
+            std::cout << "Average gesture error: " << average_gesture_distance << " mm" << std::endl;
 
             // Only evaluate time for the first subject and gesture
         #ifdef SHOW_TIME
@@ -165,10 +183,14 @@ int main(int argc, char** argv )
         #endif
         }
 
+        average_subject_distance /= image_count;
+        std::cout << "Average subject error: " << average_subject_distance << " mm" << std::endl;
+
         // Only evaluate time for the first subject and gesture
     #ifdef SHOW_TIME
         break;
     #endif
+        break;
     }
 
     cv::destroyAllWindows();

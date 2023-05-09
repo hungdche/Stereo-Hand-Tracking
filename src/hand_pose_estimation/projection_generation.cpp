@@ -7,17 +7,25 @@
 #include "dataset_loader.h"
 #include "depth_projector.h"
 
-#define SHOW_TIME
+// #define SHOW_TIME
+#define SAVE_IMAGES
 
 const std::string planes[3] = {"XY", "YZ", "ZX"};
 
 int main(int argc, char** argv )
 {
-    if (argc != 3)
-    {
+#ifdef SAVE_IMAGES 
+    if (argc != 4) {
+        std::cout << "usage: ./projection_generation [dataset_directory] [output_directory] [image_directory]" << std::endl;
+        return -1;
+    }
+    const std::string image_directory{argv[3]};
+#else
+    if (argc != 3) {
         std::cout << "usage: ./projection_generation [dataset_directory] [output_directory]" << std::endl;
         return -1;
     }
+#endif
 
     CVPR17_MSRAHandGesture dataset{argv[1]};
     DepthProjector projector(CVPR17_MSRAHandGesture::width, CVPR17_MSRAHandGesture::height, 
@@ -25,13 +33,13 @@ int main(int argc, char** argv )
                              96, 18);
     const std::string output_directory{argv[2]};
 
-    bool visualize = false;
+    bool visualize = true;
     bool visualize_joints = false;
     if (visualize) {
         cv::namedWindow("Depth Image");
-        cv::namedWindow("Heatmap 0");
-        cv::namedWindow("Heatmap 1");
-        cv::namedWindow("Heatmap 2");
+        cv::namedWindow("Projection XY");
+        cv::namedWindow("Projection YZ");
+        cv::namedWindow("Projection ZX");
     }
 
     for (int subject = 0; subject < 9; subject++) {
@@ -52,9 +60,20 @@ int main(int argc, char** argv )
                     cv::Size resize(4 * bbox.width, 4 * bbox.height);
                     cv::Mat resized_depth;
                     cv::resize(depth, resized_depth, resize, 0, 0, cv::INTER_NEAREST);
-                    resized_depth /= 1000.0;
+                    resized_depth /= 1000.0f;
+
                     cv::resizeWindow("Depth Image", resize);
                     cv::imshow("Depth Image", resized_depth);
+
+                #ifdef SAVE_IMAGES
+                    std::stringstream ss;
+                    ss << std::setw(6) << std::setfill('0') << frame;
+                    std::string depth_name = image_directory + "/" + ss.str() + "-depth.png";
+                    ss.str(std::string());
+
+                    std::cout << "Writing to " << depth_name << std::endl;
+                    cv::imwrite(depth_name, resized_depth * 256);
+                #endif
                 }
 
                 // Project on XY, YZ, and XZ planes
@@ -80,19 +99,29 @@ int main(int argc, char** argv )
                         auto& heatmap = heatmap_uvs[i];
 
                         cv::Mat recolor;
-                        cv::cvtColor(plane, recolor, CV_GRAY2RGB);
+                        cv::cvtColor(plane * 256, recolor, CV_GRAY2RGB);
                         cv::Size resize(4 * plane.cols, 4 * plane.rows);
                         cv::Mat resized_image;
                         cv::resize(recolor, resized_image, resize, 0, 0, cv::INTER_NEAREST);
 
                         if (visualize_joints) {
                             for (int j = 0; j < 21; j++) {
-                                cv::circle(resized_image, 4 * heatmap[j], 5, cv::Scalar(0,0, 255, 0), CV_FILLED, CV_AA, 0);
+                                cv::circle(resized_image, 4 * heatmap[j], 5, cv::Scalar(0, 0, 255, 0), CV_FILLED, CV_AA, 0);
                             }
                         }
 
-                        cv::resizeWindow("Heatmap " + std::to_string(i), resize);
-                        cv::imshow("Heatmap " + std::to_string(i), resized_image);
+                        cv::resizeWindow("Projection " + planes[i], resize);
+                        cv::imshow("Projection " + planes[i], resized_image / 256);
+
+                    #ifdef SAVE_IMAGES
+                        std::stringstream ss;
+                        ss << std::setw(6) << std::setfill('0') << frame;
+                        std::string projection_name = image_directory + "/" + ss.str() + "-" + planes[i] + ".png";
+                        ss.str(std::string());
+
+                        std::cout << "Writing to " << projection_name << std::endl;
+                        cv::imwrite(projection_name, resized_image);
+                    #endif
                     }
                 }
 
